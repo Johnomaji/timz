@@ -8,8 +8,8 @@ import type {
   User,
 } from "./types";
 
-export const DEMO_USER = { email: "user@apexvest.io", password: "user123" };
-export const DEMO_ADMIN = { email: "admin@apexvest.io", password: "admin123" };
+export const DEMO_USER = { email: "user@the5group.io", password: "user123" };
+export const DEMO_ADMIN = { email: "admin@the5group.io", password: "admin123" };
 
 function mulberry32(seed: number) {
   let a = seed;
@@ -125,7 +125,7 @@ export function seedDb(): DB {
     joinedAt: daysAgo(420),
     lastActiveAt: daysAgo(0, 1),
     kycStatus: "verified",
-    referralCode: "APEX-ADMIN",
+    referralCode: "T5G-ADMIN",
     referredBy: null,
     twoFactor: true,
   };
@@ -144,7 +144,7 @@ export function seedDb(): DB {
     joinedAt: daysAgo(96),
     lastActiveAt: daysAgo(0),
     kycStatus: "verified",
-    referralCode: "APEX-JW4Q",
+    referralCode: "T5G-JW4Q",
     referredBy: null,
     twoFactor: false,
   };
@@ -168,7 +168,7 @@ export function seedDb(): DB {
       lastActiveAt: daysAgo(Math.floor(rand() * 9), Math.floor(rand() * 20)),
       kycStatus:
         kycRoll > 0.66 ? "verified" : kycRoll > 0.38 ? "pending" : kycRoll > 0.2 ? "unverified" : "rejected",
-      referralCode: `APEX-${name.split(" ")[0]!.slice(0, 2).toUpperCase()}${Math.floor(10 + rand() * 89)}`,
+      referralCode: `T5G-${name.split(" ")[0]!.slice(0, 2).toUpperCase()}${Math.floor(10 + rand() * 89)}`,
       referredBy: index < 3 ? primary.id : null,
       twoFactor: rand() > 0.6,
     });
@@ -395,8 +395,8 @@ export function seedDb(): DB {
     kyc,
     notifications,
     settings: {
-      platformName: "ApexVest",
-      supportEmail: "support@apexvest.io",
+      platformName: "The5Group",
+      supportEmail: "support@the5group.io",
       minDeposit: 100,
       minWithdrawal: 50,
       withdrawalFeePct: 1.5,

@@ -156,9 +156,9 @@ export default function RegisterPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Referral code" hint="Optional — try APEX-JW4Q">
+            <Field label="Referral code" hint="Optional — try T5G-JW4Q">
               <Input
-                placeholder="APEX-XXXX"
+                placeholder="T5G-XXXX"
                 value={form.referralCode}
                 onChange={(e) => set("referralCode")(e.target.value.toUpperCase())}
               />

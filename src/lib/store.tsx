@@ -22,7 +22,7 @@ import type {
 } from "./types";
 import { daysBetween, uid } from "./utils";
 
-const STORAGE_KEY = "apexvest.db.v2";
+const STORAGE_KEY = "the5group.db.v1";
 
 export interface InvestmentView extends Investment {
   plan: Plan;
@@ -181,7 +181,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           joinedAt: new Date().toISOString(),
           lastActiveAt: new Date().toISOString(),
           kycStatus: "unverified",
-          referralCode: `APEX-${name.slice(0, 2).toUpperCase()}${Math.floor(10 + Math.random() * 89)}`,
+          referralCode: `T5G-${name.slice(0, 2).toUpperCase()}${Math.floor(10 + Math.random() * 89)}`,
           referredBy: referrer?.id ?? null,
           twoFactor: false,
         };
@@ -587,7 +587,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-base">
         <div className="flex items-center gap-3 text-muted">
           <span className="size-2.5 animate-ring rounded-full bg-brand" />
-          Loading ApexVest…
+          Loading The5Group…
         </div>
       </div>
     );
