@@ -27,12 +27,13 @@ const blankPlan = (): Plan => ({
   id: uid("plan"),
   name: "",
   tagline: "",
-  dailyRate: 1.5,
-  durationDays: 30,
+  roiMinPct: 10,
+  roiMaxPct: 15,
+  durationDays: 90,
   minAmount: 100,
   maxAmount: 10_000,
   accent: "brand",
-  perks: ["Daily ROI credited automatically", "Principal returned at maturity"],
+  perks: ["Rate locked in when you subscribe", "Principal plus ROI paid at maturity"],
   active: true,
 });
 
@@ -60,8 +61,12 @@ export default function AdminPlansPage() {
       setError("Give the plan a name.");
       return;
     }
-    if (editing.dailyRate <= 0 || editing.durationDays <= 0) {
-      setError("Daily rate and duration must be greater than zero.");
+    if (editing.roiMinPct <= 0 || editing.durationDays <= 0) {
+      setError("ROI and duration must be greater than zero.");
+      return;
+    }
+    if (editing.roiMaxPct < editing.roiMinPct) {
+      setError("Maximum ROI cannot be below the minimum.");
       return;
     }
     if (editing.minAmount <= 0 || editing.maxAmount <= editing.minAmount) {
@@ -117,9 +122,8 @@ export default function AdminPlansPage() {
           <thead>
             <tr>
               <Th>Plan</Th>
-              <Th className="text-right">Daily rate</Th>
               <Th className="text-right">Term</Th>
-              <Th className="text-right">Total return</Th>
+              <Th className="text-right">Total ROI</Th>
               <Th>Range</Th>
               <Th className="text-right">Subscribers</Th>
               <Th>State</Th>
@@ -135,10 +139,9 @@ export default function AdminPlansPage() {
                     <p className="font-medium text-ink">{plan.name}</p>
                     <p className="max-w-64 truncate text-xs text-faint">{plan.tagline}</p>
                   </Td>
-                  <Td className="text-right font-mono">{plan.dailyRate}%</Td>
                   <Td className="text-right font-mono">{plan.durationDays}d</Td>
                   <Td className="text-right font-mono text-brand">
-                    {(plan.dailyRate * plan.durationDays).toFixed(0)}%
+                    {plan.roiMinPct}–{plan.roiMaxPct}%
                   </Td>
                   <Td className="whitespace-nowrap text-muted">
                     {money(plan.minAmount, { compact: true })} –{" "}
@@ -223,13 +226,22 @@ export default function AdminPlansPage() {
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Daily rate (%)">
+              <Field label="Minimum ROI (%)" hint="Total over the term, not per day">
                 <Input
                   type="number"
                   step="0.1"
                   min="0.1"
-                  value={editing.dailyRate}
-                  onChange={(e) => setEditing({ ...editing, dailyRate: Number(e.target.value) })}
+                  value={editing.roiMinPct}
+                  onChange={(e) => setEditing({ ...editing, roiMinPct: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label="Maximum ROI (%)">
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={editing.roiMaxPct}
+                  onChange={(e) => setEditing({ ...editing, roiMaxPct: Number(e.target.value) })}
                 />
               </Field>
               <Field label="Term (days)">
@@ -274,10 +286,10 @@ export default function AdminPlansPage() {
             <div className="flex items-center justify-between rounded-xl border border-brand/25 bg-brand/8 px-4 py-3 text-sm">
               <span className="flex items-center gap-2 text-muted">
                 <Sparkles className="size-4 text-brand" />
-                Total return over the full term
+                Each subscription locks a rate drawn from this range
               </span>
               <span className="font-mono font-semibold text-brand">
-                {(editing.dailyRate * editing.durationDays).toFixed(1)}%
+                {editing.roiMinPct}–{editing.roiMaxPct}% / {editing.durationDays}d
               </span>
             </div>
 

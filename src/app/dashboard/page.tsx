@@ -3,7 +3,6 @@
 import {
   ArrowDownToLine,
   ArrowRight,
-  BadgeCheck,
   Coins,
   PiggyBank,
   Timer,
@@ -86,31 +85,6 @@ export default function DashboardOverview() {
         }
       />
 
-      {currentUser.kycStatus !== "verified" && (
-        <Card className="mb-6 flex flex-wrap items-center justify-between gap-4 border-warn/30 bg-warn/8 p-5">
-          <div className="flex items-start gap-3">
-            <BadgeCheck className="mt-0.5 size-5 shrink-0 text-warn" />
-            <div>
-              <p className="font-medium text-ink">
-                {currentUser.kycStatus === "pending"
-                  ? "Verification under review"
-                  : "Verify your identity to enable withdrawals"}
-              </p>
-              <p className="mt-0.5 text-sm text-muted">
-                {currentUser.kycStatus === "pending"
-                  ? "Our compliance desk is reviewing your documents."
-                  : "You can deposit and invest now, but withdrawals stay locked until you verify."}
-              </p>
-            </div>
-          </div>
-          <Link href="/dashboard/kyc">
-            <Button variant="outline" size="sm">
-              {currentUser.kycStatus === "pending" ? "View status" : "Start verification"}
-            </Button>
-          </Link>
-        </Card>
-      )}
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Available balance"
@@ -168,7 +142,7 @@ export default function DashboardOverview() {
         <Card>
           <CardHeader
             title="Earnings — last 14 days"
-            subtitle="Daily ROI payouts and referral commission"
+            subtitle="ROI accrual and referral commission"
           />
           <div className="p-5">
             <EarningsChart data={earningsSeries} />
@@ -213,7 +187,7 @@ export default function DashboardOverview() {
             <EmptyState
               icon={<TrendingUp className="size-5" />}
               title="No active investments"
-              description="Pick a plan that matches your horizon and start accruing daily ROI."
+              description="Pick a plan that matches your horizon and lock in your rate."
               action={
                 <Link href="/dashboard/plans">
                   <Button size="sm">View plans</Button>
@@ -233,7 +207,7 @@ export default function DashboardOverview() {
                         </Badge>
                       </div>
                       <p className="mt-1 text-sm text-muted">
-                        {money(inv.amount)} at {inv.plan.dailyRate}% daily · matures{" "}
+                        {money(inv.amount)} locked at {inv.roiPct}% · matures{" "}
                         {shortDate(inv.maturesAt)}
                       </p>
                     </div>

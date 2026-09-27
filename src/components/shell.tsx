@@ -3,7 +3,6 @@
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
-  BadgeCheck,
   Bell,
   ChevronDown,
   LayoutDashboard,
@@ -32,7 +31,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  badgeKey?: "deposits" | "withdrawals" | "kyc";
+  badgeKey?: "deposits" | "withdrawals";
 }
 
 const USER_NAV: NavItem[] = [
@@ -42,7 +41,6 @@ const USER_NAV: NavItem[] = [
   { href: "/dashboard/withdraw", label: "Withdraw", icon: ArrowUpFromLine },
   { href: "/dashboard/transactions", label: "Transactions", icon: Receipt },
   { href: "/dashboard/referrals", label: "Referrals", icon: Share2 },
-  { href: "/dashboard/kyc", label: "Verification", icon: BadgeCheck },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
@@ -51,7 +49,6 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/deposits", label: "Deposits", icon: ArrowDownToLine, badgeKey: "deposits" },
   { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine, badgeKey: "withdrawals" },
-  { href: "/admin/kyc", label: "KYC queue", icon: ShieldCheck, badgeKey: "kyc" },
   { href: "/admin/plans", label: "Plans", icon: Sparkles },
   { href: "/admin/settings", label: "Platform settings", icon: Settings },
 ];
@@ -87,9 +84,8 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
       deposits: db.transactions.filter((t) => t.kind === "deposit" && t.status === "pending").length,
       withdrawals: db.transactions.filter((t) => t.kind === "withdrawal" && t.status === "pending")
         .length,
-      kyc: db.kyc.filter((k) => k.status === "pending").length,
     }),
-    [db.transactions, db.kyc],
+    [db.transactions],
   );
 
   if (!currentUser || currentUser.role !== role) {

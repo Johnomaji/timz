@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The5Group — Digital asset investment platform",
+  title: "ApexVest — Digital asset investment platform",
   description:
-    "Fund your account, subscribe to a managed yield plan and track daily ROI from a single dashboard.",
+    "Fund your account, subscribe to a managed yield plan and track your ROI from a single dashboard.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

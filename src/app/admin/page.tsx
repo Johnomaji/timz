@@ -5,7 +5,6 @@ import {
   ArrowUpFromLine,
   Banknote,
   PiggyBank,
-  ShieldCheck,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -36,7 +35,6 @@ export default function AdminOverview() {
   const pendingWithdrawals = db.transactions.filter(
     (t) => t.kind === "withdrawal" && t.status === "pending",
   );
-  const pendingKyc = db.kyc.filter((k) => k.status === "pending");
 
   const activeInvestments = useMemo(
     () =>
@@ -90,13 +88,6 @@ export default function AdminOverview() {
       count: pendingWithdrawals.length,
       value: pendingWithdrawals.reduce((s, t) => s + t.amount, 0),
       icon: ArrowUpFromLine,
-    },
-    {
-      href: "/admin/kyc" as const,
-      label: "KYC submissions to review",
-      count: pendingKyc.length,
-      value: null,
-      icon: ShieldCheck,
     },
   ];
 

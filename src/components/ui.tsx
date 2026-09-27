@@ -224,7 +224,6 @@ export function statusTone(status: string): BadgeTone {
   switch (status) {
     case "approved":
     case "completed":
-    case "verified":
     case "active":
       return "success";
     case "pending":

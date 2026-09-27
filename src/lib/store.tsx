@@ -13,7 +13,6 @@ import { seedDb } from "./seed";
 import type {
   DB,
   Investment,
-  KycSubmission,
   Notification,
   Plan,
   Settings,
@@ -22,7 +21,13 @@ import type {
 } from "./types";
 import { daysBetween, uid } from "./utils";
 
-const STORAGE_KEY = "the5group.db.v1";
+const STORAGE_KEY = "apexvest.db.v4";
+
+/** Each subscription draws its own total-return rate from the plan's advertised range. */
+function lockRoiPct(plan: Plan) {
+  const span = plan.roiMaxPct - plan.roiMinPct;
+  return Math.round((plan.roiMinPct + Math.random() * span) * 10) / 10;
+}
 
 export interface InvestmentView extends Investment {
   plan: Plan;
@@ -52,19 +57,11 @@ interface StoreValue {
   requestWithdrawal: (amount: number, method: string, address: string) => { ok: boolean; error?: string };
   invest: (planId: string, amount: number) => { ok: boolean; error?: string };
   collectInvestment: (investmentId: string) => void;
-  submitKyc: (input: {
-    fullName: string;
-    documentType: KycSubmission["documentType"];
-    documentNumber: string;
-    fileName: string;
-    fileSize: number;
-  }) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "country" | "twoFactor">>) => void;
   changePassword: (current: string, next: string) => { ok: boolean; error?: string };
   resolveTransaction: (id: string, decision: "approved" | "rejected", note?: string) => void;
-  reviewKyc: (id: string, decision: "verified" | "rejected", note?: string) => void;
   setUserStatus: (userId: string, status: User["status"]) => void;
   adjustBalance: (userId: string, delta: number, note: string) => void;
   savePlan: (plan: Plan) => void;
@@ -180,8 +177,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           phone: "",
           joinedAt: new Date().toISOString(),
           lastActiveAt: new Date().toISOString(),
-          kycStatus: "unverified",
-          referralCode: `T5G-${name.slice(0, 2).toUpperCase()}${Math.floor(10 + Math.random() * 89)}`,
+          referralCode: `APEX-${name.slice(0, 2).toUpperCase()}${Math.floor(10 + Math.random() * 89)}`,
           referredBy: referrer?.id ?? null,
           twoFactor: false,
         };
@@ -241,8 +237,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       requestWithdrawal: (amount, method, address) => {
         if (!currentUser) return { ok: false, error: "Not signed in." };
-        if (currentUser.kycStatus !== "verified")
-          return { ok: false, error: "Identity verification is required before withdrawing." };
         if (amount < db.settings.minWithdrawal)
           return { ok: false, error: `Minimum withdrawal is $${db.settings.minWithdrawal}.` };
         const fee = (amount * db.settings.withdrawalFeePct) / 100;
@@ -286,6 +280,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (amount > currentUser.balance)
           return { ok: false, error: "Insufficient balance. Make a deposit first." };
 
+        const roiPct = lockRoiPct(plan);
+
         mutate((draft) => {
           const user = draft.users.find((u) => u.id === currentUser.id)!;
           user.balance -= amount;
@@ -296,6 +292,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             amount,
             startedAt: new Date().toISOString(),
             status: "active",
+            roiPct,
             payoutCollected: 0,
           });
           pushTx(draft, {
@@ -313,35 +310,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             draft,
             user.id,
             `${plan.name} plan activated`,
-            `Your $${amount.toLocaleString()} allocation starts earning ${plan.dailyRate}% daily.`,
+            `Your $${amount.toLocaleString()} allocation is locked at ${roiPct}% over ${plan.durationDays} days.`,
             "success",
           );
 
-          if (user.referredBy) {
-            const commission = (amount * draft.settings.referralCommissionPct) / 100;
-            const referrer = draft.users.find((u) => u.id === user.referredBy);
-            if (referrer) {
-              referrer.balance += commission;
-              pushTx(draft, {
-                userId: referrer.id,
-                kind: "referral",
-                amount: commission,
-                status: "completed",
-                method: "Referral commission",
-                reference: `REF-${Math.floor(10_000 + Math.random() * 89_999)}`,
-                note: `Commission from ${user.name}`,
-                createdAt: new Date().toISOString(),
-                resolvedAt: new Date().toISOString(),
-              });
-              notify(
-                draft,
-                referrer.id,
-                "Referral commission earned",
-                `You earned $${commission.toFixed(2)} from ${user.name}'s investment.`,
-                "success",
-              );
-            }
-          }
           return draft;
         });
         return { ok: true };
@@ -353,7 +325,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (!inv || inv.status !== "active") return draft;
           const plan = draft.plans.find((p) => p.id === inv.planId);
           if (!plan) return draft;
-          const roi = (inv.amount * plan.dailyRate * plan.durationDays) / 100;
+          const roi = (inv.amount * inv.roiPct) / 100;
           const user = draft.users.find((u) => u.id === inv.userId);
           if (!user) return draft;
 
@@ -378,36 +350,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             `$${(inv.amount + roi).toLocaleString(undefined, { maximumFractionDigits: 2 })} was credited to your balance.`,
             "success",
           );
-          return draft;
-        });
-      },
 
-      submitKyc: ({ fullName, documentType, documentNumber, fileName, fileSize }) => {
-        mutate((draft) => {
-          const user = draft.users.find((u) => u.id === draft.sessionUserId);
-          if (!user) return draft;
-          draft.kyc = draft.kyc.filter((k) => k.userId !== user.id);
-          draft.kyc.unshift({
-            id: uid("kyc"),
-            userId: user.id,
-            fullName,
-            documentType,
-            documentNumber,
-            fileName,
-            fileSize,
-            status: "pending",
-            submittedAt: new Date().toISOString(),
-            reviewedAt: null,
-            reviewNote: "",
-          });
-          user.kycStatus = "pending";
-          notify(
-            draft,
-            user.id,
-            "Documents received",
-            "Your identity documents are under review. This usually takes a few hours.",
-            "info",
-          );
+          if (user.referredBy) {
+            const commission = (roi * draft.settings.referralCommissionPct) / 100;
+            const referrer = draft.users.find((u) => u.id === user.referredBy);
+            if (referrer) {
+              referrer.balance += commission;
+              pushTx(draft, {
+                userId: referrer.id,
+                kind: "referral",
+                amount: commission,
+                status: "completed",
+                method: "Referral commission",
+                reference: `REF-${Math.floor(10_000 + Math.random() * 89_999)}`,
+                note: `${draft.settings.referralCommissionPct}% of ${user.name}'s ${plan.name} ROI`,
+                createdAt: new Date().toISOString(),
+                resolvedAt: new Date().toISOString(),
+              });
+              notify(
+                draft,
+                referrer.id,
+                "Referral reward earned",
+                `You earned $${commission.toFixed(2)} — ${draft.settings.referralCommissionPct}% of ${user.name}'s ROI.`,
+                "success",
+              );
+            }
+          }
           return draft;
         });
       },
@@ -496,29 +464,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return draft;
         }),
 
-      reviewKyc: (id, decision, note) =>
-        mutate((draft) => {
-          const sub = draft.kyc.find((k) => k.id === id);
-          if (!sub) return draft;
-          sub.status = decision;
-          sub.reviewedAt = new Date().toISOString();
-          sub.reviewNote = note ?? "";
-          const user = draft.users.find((u) => u.id === sub.userId);
-          if (user) {
-            user.kycStatus = decision;
-            notify(
-              draft,
-              user.id,
-              decision === "verified" ? "Identity verified" : "Verification rejected",
-              decision === "verified"
-                ? "Your account is fully verified. Withdrawals are now enabled."
-                : note || "Please re-upload a clearer document.",
-              decision === "verified" ? "success" : "danger",
-            );
-          }
-          return draft;
-        }),
-
       setUserStatus: (userId, status) =>
         mutate((draft) => {
           const user = draft.users.find((u) => u.id === userId);
@@ -587,7 +532,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-base">
         <div className="flex items-center gap-3 text-muted">
           <span className="size-2.5 animate-ring rounded-full bg-brand" />
-          Loading The5Group…
+          Loading ApexVest…
         </div>
       </div>
     );
@@ -607,9 +552,11 @@ export function buildInvestmentView(inv: Investment, plans: Plan[]): InvestmentV
   if (!plan) return null;
   const elapsedDays = Math.max(0, daysBetween(inv.startedAt));
   const cappedDays = Math.min(elapsedDays, plan.durationDays);
-  const projectedTotal = (inv.amount * plan.dailyRate * plan.durationDays) / 100;
+  const projectedTotal = (inv.amount * inv.roiPct) / 100;
   const accrued =
-    inv.status === "active" ? (inv.amount * plan.dailyRate * cappedDays) / 100 : inv.payoutCollected;
+    inv.status === "active"
+      ? (projectedTotal * cappedDays) / plan.durationDays
+      : inv.payoutCollected;
   return {
     ...inv,
     plan,

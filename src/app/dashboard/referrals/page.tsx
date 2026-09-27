@@ -56,7 +56,7 @@ export default function ReferralsPage() {
     <div className="mx-auto max-w-6xl">
       <PageHeading
         title="Referrals"
-        description={`Earn ${db.settings.referralCommissionPct}% commission on every investment made by someone you invite.`}
+        description={`Receive ${db.settings.referralCommissionPct}% of the ROI from every referral.`}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -69,9 +69,9 @@ export default function ReferralsPage() {
           tone="violet"
         />
         <StatCard
-          label="Commission rate"
+          label="Referral reward"
           value={`${db.settings.referralCommissionPct}%`}
-          sub="Of each invested amount"
+          sub="Of each referral's ROI"
           icon={Share2}
           tone="cyan"
         />
@@ -112,7 +112,7 @@ export default function ReferralsPage() {
             <EmptyState
               icon={<Users className="size-5" />}
               title="No referrals yet"
-              description="Share your link — you earn on every investment they make."
+              description="Share your link — you earn a cut of the ROI they make."
             />
           ) : (
             <ul className="divide-y divide-line/60">
@@ -125,7 +125,7 @@ export default function ReferralsPage() {
                       Joined {shortDate(user.joinedAt)} · {user.country}
                     </p>
                   </div>
-                  <Badge tone={statusTone(user.kycStatus)}>{user.kycStatus}</Badge>
+                  <Badge tone={statusTone(user.status)}>{user.status}</Badge>
                 </li>
               ))}
             </ul>

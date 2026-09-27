@@ -21,7 +21,7 @@ const COUNTRIES = [
 ];
 
 const BENEFITS = [
-  "Daily ROI on every active plan",
+  "Your ROI rate locked in on every plan",
   "Referral commission on invited investors",
   "Full transaction history and payout tracking",
 ];
@@ -156,9 +156,9 @@ export default function RegisterPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Referral code" hint="Optional — try T5G-JW4Q">
+            <Field label="Referral code" hint="Optional — try APEX-JW4Q">
               <Input
-                placeholder="T5G-XXXX"
+                placeholder="APEX-XXXX"
                 value={form.referralCode}
                 onChange={(e) => set("referralCode")(e.target.value.toUpperCase())}
               />

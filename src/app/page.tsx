@@ -35,13 +35,13 @@ const accentText = {
 const FEATURES = [
   {
     icon: Zap,
-    title: "Daily ROI, credited automatically",
-    body: "Every active plan accrues yield continuously. Watch it tick up on your dashboard and collect principal plus profit at maturity.",
+    title: "Your rate, locked on day one",
+    body: "Every plan quotes a range, and your subscription locks a rate inside it. Watch ROI accrue on your dashboard and collect principal plus profit at maturity.",
   },
   {
     icon: ShieldCheck,
-    title: "Verified accounts only",
-    body: "Identity checks are reviewed by our compliance desk before withdrawals unlock, keeping the platform clean for everyone.",
+    title: "Every transfer reviewed",
+    body: "Deposits and withdrawals pass through an admin approval queue before funds move, so nothing settles unnoticed.",
   },
   {
     icon: BarChart3,
@@ -58,7 +58,7 @@ const FEATURES = [
 const STEPS = [
   {
     title: "Create your account",
-    body: "Sign up in under a minute and complete identity verification to unlock withdrawals.",
+    body: "Sign up in under a minute — no documents, no waiting on approval.",
   },
   {
     title: "Fund your balance",
@@ -76,12 +76,12 @@ const STEPS = [
 
 const FAQS = [
   {
-    q: "How is the daily yield generated?",
-    a: "Allocations are deployed across market-neutral strategies — funding-rate arbitrage, liquidity provision and basis trades. Returns are smoothed into a fixed daily rate per plan so your payout schedule is predictable.",
+    q: "Why is the return shown as a range?",
+    a: "Allocations are deployed across market-neutral strategies — funding-rate arbitrage, liquidity provision and basis trades. Each plan publishes the band those strategies deliver over its term, and your subscription locks a single rate from that band, so you know your exact payout from day one.",
   },
   {
     q: "When can I withdraw?",
-    a: "Your available balance can be withdrawn at any time once identity verification is approved. Capital committed to an active plan unlocks at the end of the plan term along with its accrued ROI.",
+    a: "Your available balance can be withdrawn at any time, subject to admin approval of the request. Capital committed to an active plan unlocks at the end of the plan term along with its accrued ROI.",
   },
   {
     q: "Is there a fee?",
@@ -89,7 +89,7 @@ const FAQS = [
   },
   {
     q: "What does the referral programme pay?",
-    a: "You earn a commission on every investment made by someone who signs up with your link, credited to your balance the moment their plan activates.",
+    a: "You receive 10% of the ROI earned by anyone who signs up with your link, credited to your balance when their plan matures and pays out.",
   },
   {
     q: "Is this a real product?",
@@ -169,8 +169,8 @@ export default function LandingPage() {
 
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
               {db.settings.platformName} is a managed yield platform. Fund your balance, pick a plan
-              that matches your horizon, and track daily ROI, withdrawals and referrals from one
-              clean dashboard.
+              that matches your horizon, and track ROI, withdrawals and referrals from one clean
+              dashboard.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -192,8 +192,8 @@ export default function LandingPage() {
                 { label: "Under management", value: money(totalUnderManagement, { compact: true }) },
                 { label: "Investors", value: `${db.users.filter((u) => u.role === "user").length}` },
                 {
-                  label: "Top daily rate",
-                  value: `${Math.max(...activePlans.map((p) => p.dailyRate))}%`,
+                  label: "Top annual ROI",
+                  value: `${Math.max(...activePlans.map((p) => p.roiMaxPct))}%`,
                 },
                 { label: "Payout uptime", value: "99.9%" },
               ].map((stat) => (
@@ -211,18 +211,17 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-5 py-20">
           <div className="max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Four plans. One dashboard.
+              Three plans. One dashboard.
             </h2>
             <p className="mt-3 text-muted">
-              Every plan pays a fixed daily rate on your allocation and returns the principal at the
-              end of the term. No lock-in beyond the term you pick.
+              Pick a term and your rate is locked in for its full length. Principal and ROI are paid
+              together at maturity — no lock-in beyond the term you pick.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {activePlans.map((plan) => {
-              const totalReturn = plan.dailyRate * plan.durationDays;
-              const featured = plan.id === "plan_growth";
+              const featured = plan.id === "plan_6m";
               return (
                 <Card
                   key={plan.id}
@@ -240,14 +239,13 @@ export default function LandingPage() {
 
                   <div className="mt-5 flex items-end gap-1.5">
                     <span className={cn("font-mono text-4xl font-semibold", accentText[plan.accent])}>
-                      {plan.dailyRate}%
+                      {plan.roiMinPct}–{plan.roiMaxPct}%
                     </span>
-                    <span className="pb-1 text-sm text-muted">/ day</span>
+                    <span className="pb-1 text-sm text-muted">total ROI</span>
                   </div>
 
                   <div className="mt-4 space-y-2 border-t border-line pt-4 text-sm">
                     <Row label="Term" value={`${plan.durationDays} days`} />
-                    <Row label="Total return" value={`${totalReturn.toFixed(0)}%`} accent />
                     <Row
                       label="Range"
                       value={`${money(plan.minAmount, { compact: true })} – ${money(plan.maxAmount, { compact: true })}`}
@@ -284,8 +282,7 @@ export default function LandingPage() {
               </h2>
               <p className="mt-3 text-muted">
                 Both sides of the platform are first-class: investors get a live portfolio view, and
-                administrators get approval queues, KYC review and full control over plans and
-                platform limits.
+                administrators get approval queues and full control over plans and platform limits.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Badge tone="info">

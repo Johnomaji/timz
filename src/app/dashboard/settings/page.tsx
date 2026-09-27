@@ -96,7 +96,6 @@ export default function UserSettingsPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Badge tone={statusTone(currentUser.kycStatus)}>KYC: {currentUser.kycStatus}</Badge>
           <Badge tone={statusTone(currentUser.status)}>{currentUser.status}</Badge>
         </div>
       </Card>

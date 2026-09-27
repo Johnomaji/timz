@@ -22,7 +22,7 @@ import { buildInvestmentView, useStore, type InvestmentView } from "@/lib/store"
 import type { User } from "@/lib/types";
 import { money, shortDate, timeAgo } from "@/lib/utils";
 
-type Filter = "all" | "active" | "suspended" | "pending_kyc";
+type Filter = "all" | "active" | "suspended";
 
 export default function AdminUsersPage() {
   const { db, setUserStatus, adjustBalance } = useStore();
@@ -40,13 +40,11 @@ export default function AdminUsersPage() {
     all: investors.length,
     active: investors.filter((u) => u.status === "active").length,
     suspended: investors.filter((u) => u.status === "suspended").length,
-    pending_kyc: investors.filter((u) => u.kycStatus === "pending").length,
   };
 
   const filtered = investors.filter((user) => {
     if (filter === "active" && user.status !== "active") return false;
     if (filter === "suspended" && user.status !== "suspended") return false;
-    if (filter === "pending_kyc" && user.kycStatus !== "pending") return false;
     if (query) {
       const haystack = `${user.name} ${user.email} ${user.country} ${user.referralCode}`.toLowerCase();
       if (!haystack.includes(query.toLowerCase())) return false;
@@ -97,7 +95,6 @@ export default function AdminUsersPage() {
           { value: "all", label: "All users", count: counts.all },
           { value: "active", label: "Active", count: counts.active },
           { value: "suspended", label: "Suspended", count: counts.suspended },
-          { value: "pending_kyc", label: "Pending KYC", count: counts.pending_kyc },
         ]}
         value={filter}
         onChange={setFilter}
@@ -124,7 +121,6 @@ export default function AdminUsersPage() {
                 <Th>Investor</Th>
                 <Th className="text-right">Balance</Th>
                 <Th className="text-right">Deployed</Th>
-                <Th>KYC</Th>
                 <Th>Status</Th>
                 <Th>Last active</Th>
                 <Th className="text-right">Actions</Th>
@@ -148,9 +144,6 @@ export default function AdminUsersPage() {
                   <Td className="text-right font-mono">{money(user.balance)}</Td>
                   <Td className="text-right font-mono text-muted">
                     {money(deployedFor(user.id), { compact: true })}
-                  </Td>
-                  <Td>
-                    <Badge tone={statusTone(user.kycStatus)}>{user.kycStatus}</Badge>
                   </Td>
                   <Td>
                     <Badge tone={statusTone(user.status)}>{user.status}</Badge>
@@ -296,7 +289,6 @@ export default function AdminUsersPage() {
 
             <div className="flex flex-wrap gap-2">
               <Badge tone={statusTone(liveDetail.status)}>{liveDetail.status}</Badge>
-              <Badge tone={statusTone(liveDetail.kycStatus)}>KYC: {liveDetail.kycStatus}</Badge>
               <Badge tone={liveDetail.twoFactor ? "success" : "neutral"}>
                 <ShieldCheck className="size-3" />
                 2FA {liveDetail.twoFactor ? "on" : "off"}

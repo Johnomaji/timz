@@ -145,8 +145,8 @@ export default function AdminSettingsPage() {
               />
             </Field>
             <Field
-              label="Referral commission (%)"
-              hint="Paid instantly on every referred investment"
+              label="Referral reward (%)"
+              hint="Share of a referral's ROI, paid when their plan matures"
             >
               <Input
                 type="number"
@@ -329,7 +329,7 @@ export default function AdminSettingsPage() {
         }
       >
         <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-muted">
-          Sign back in with <span className="font-mono text-ink">admin@the5group.io</span> /{" "}
+          Sign back in with <span className="font-mono text-ink">admin@apexvest.io</span> /{" "}
           <span className="font-mono text-ink">admin123</span> afterwards.
         </p>
       </Modal>

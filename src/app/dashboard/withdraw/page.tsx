@@ -1,7 +1,6 @@
 "use client";
 
-import { AlertCircle, BadgeCheck, Check, Lock } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, Check } from "lucide-react";
 import { useState } from "react";
 import { PageHeading } from "@/components/shell";
 import {
@@ -30,7 +29,6 @@ export default function WithdrawPage() {
 
   if (!currentUser) return null;
 
-  const verified = currentUser.kycStatus === "verified";
   const myWithdrawals = db.transactions.filter(
     (t) => t.userId === currentUser.id && t.kind === "withdrawal",
   );
@@ -64,26 +62,6 @@ export default function WithdrawPage() {
         description="Requests are reviewed by an administrator before funds are released."
       />
 
-      {!verified && (
-        <Card className="mb-5 flex flex-wrap items-center justify-between gap-4 border-warn/30 bg-warn/8 p-5">
-          <div className="flex items-start gap-3">
-            <Lock className="mt-0.5 size-5 shrink-0 text-warn" />
-            <div>
-              <p className="font-medium text-ink">Withdrawals are locked</p>
-              <p className="mt-0.5 text-sm text-muted">
-                Complete identity verification to unlock withdrawals on this account.
-              </p>
-            </div>
-          </div>
-          <Link href="/dashboard/kyc">
-            <Button variant="outline" size="sm">
-              <BadgeCheck className="size-4" />
-              Verify identity
-            </Button>
-          </Link>
-        </Card>
-      )}
-
       <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
         <Card>
           <CardHeader title="Withdrawal request" subtitle="Funds are held while under review" />
@@ -100,7 +78,6 @@ export default function WithdrawPage() {
                   min={db.settings.minWithdrawal}
                   step="0.01"
                   placeholder="500.00"
-                  disabled={!verified}
                   value={amount}
                   onChange={(e) => {
                     setAmount(e.target.value);
@@ -120,7 +97,7 @@ export default function WithdrawPage() {
                     <button
                       key={fraction}
                       type="button"
-                      disabled={!verified || target <= 0}
+                      disabled={target <= 0}
                       onClick={() => setAmount(String(target))}
                       className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-brand/50 hover:text-brand disabled:opacity-40"
                     >
@@ -131,7 +108,7 @@ export default function WithdrawPage() {
               </div>
 
               <Field label="Asset">
-                <Select value={asset} disabled={!verified} onChange={(e) => setAsset(e.target.value)}>
+                <Select value={asset} onChange={(e) => setAsset(e.target.value)}>
                   {db.settings.wallets.map((w) => (
                     <option key={w.asset} value={w.asset}>
                       {w.asset} · {w.network}
@@ -143,7 +120,6 @@ export default function WithdrawPage() {
               <Field label="Destination address" hint="Double-check this — transfers cannot be reversed">
                 <Input
                   placeholder="Paste your wallet address"
-                  disabled={!verified}
                   value={address}
                   onChange={(e) => {
                     setAddress(e.target.value);
@@ -167,7 +143,7 @@ export default function WithdrawPage() {
               </div>
             )}
 
-            <Button type="submit" className="mt-5 w-full" size="lg" disabled={!verified}>
+            <Button type="submit" className="mt-5 w-full" size="lg">
               Request withdrawal
             </Button>
           </form>

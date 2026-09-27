@@ -48,17 +48,24 @@ export default function PlansPage() {
   };
 
   const numericAmount = Number(amount) || 0;
-  const projectedRoi = selected
-    ? (numericAmount * selected.dailyRate * selected.durationDays) / 100
-    : 0;
+  const projectedMin = selected ? (numericAmount * selected.roiMinPct) / 100 : 0;
+  const projectedMax = selected ? (numericAmount * selected.roiMaxPct) / 100 : 0;
 
   const active = investments.filter((i) => i.status === "active");
+
+  // After confirming, surface the rate that was actually drawn for this subscription.
+  const justCreated =
+    done && selected
+      ? investments
+          .filter((i) => i.planId === selected.id)
+          .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0]
+      : undefined;
 
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeading
         title="Investment plans"
-        description="Fixed daily rate, principal returned at the end of the term."
+        description="Your rate is locked in when you subscribe. Principal plus ROI is paid at maturity."
         action={
           <div className="rounded-xl border border-line bg-surface px-4 py-2.5">
             <p className="text-xs text-faint">Available to invest</p>
@@ -67,7 +74,7 @@ export default function PlansPage() {
         }
       />
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {db.plans
           .filter((p) => p.active)
           .map((plan) => {
@@ -89,21 +96,15 @@ export default function PlansPage() {
 
                 <div className="mt-5 flex items-end gap-1.5">
                   <span className={cn("font-mono text-4xl font-semibold", style.text)}>
-                    {plan.dailyRate}%
+                    {plan.roiMinPct}–{plan.roiMaxPct}%
                   </span>
-                  <span className="pb-1 text-sm text-muted">/ day</span>
+                  <span className="pb-1 text-sm text-muted">total ROI</span>
                 </div>
 
                 <dl className="mt-4 space-y-2 border-t border-line pt-4 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-muted">Term</dt>
                     <dd className="font-mono text-ink">{plan.durationDays} days</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted">Total return</dt>
-                    <dd className={cn("font-mono font-semibold", style.text)}>
-                      {(plan.dailyRate * plan.durationDays).toFixed(0)}%
-                    </dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted">Minimum</dt>
@@ -154,8 +155,8 @@ export default function PlansPage() {
                   <div>
                     <p className="font-medium text-ink">{inv.plan.name}</p>
                     <p className="mt-0.5 text-sm text-muted">
-                      {money(inv.amount)} · started {shortDate(inv.startedAt)} · matures{" "}
-                      {shortDate(inv.maturesAt)}
+                      {money(inv.amount)} at {inv.roiPct}% · started {shortDate(inv.startedAt)} ·
+                      matures {shortDate(inv.maturesAt)}
                     </p>
                   </div>
                   <p className="font-mono text-sm text-brand">+{money(inv.accrued)} accrued</p>
@@ -173,9 +174,9 @@ export default function PlansPage() {
         title={done ? "Investment activated" : `Invest in ${selected?.name ?? ""}`}
         description={
           done
-            ? "Your allocation is live and already accruing daily ROI."
+            ? "Your allocation is live and your rate is locked for the full term."
             : selected
-              ? `${selected.dailyRate}% daily for ${selected.durationDays} days`
+              ? `${selected.roiMinPct}–${selected.roiMaxPct}% total over ${selected.durationDays} days`
               : undefined
         }
         footer={
@@ -195,8 +196,17 @@ export default function PlansPage() {
           <div className="flex items-center gap-3 rounded-xl border border-brand/30 bg-brand/10 p-4">
             <Check className="size-5 shrink-0 text-brand" />
             <p className="text-sm text-ink">
-              {money(numericAmount)} allocated to {selected?.name}. Projected return{" "}
-              <span className="font-mono text-brand">{money(projectedRoi)}</span>.
+              {money(numericAmount)} allocated to {selected?.name}
+              {justCreated && (
+                <>
+                  {" "}
+                  at a locked{" "}
+                  <span className="font-mono text-brand">{justCreated.roiPct}%</span>, paying{" "}
+                  <span className="font-mono text-brand">{money(justCreated.projectedTotal)}</span> at
+                  maturity
+                </>
+              )}
+              .
             </p>
           </div>
         ) : (
@@ -234,19 +244,24 @@ export default function PlansPage() {
 
               <div className="space-y-2 rounded-xl border border-line bg-surface-2/50 p-4 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted">Daily payout</span>
-                  <span className="font-mono text-ink">
-                    {money((numericAmount * selected.dailyRate) / 100)}
-                  </span>
+                  <span className="text-muted">Term</span>
+                  <span className="font-mono text-ink">{selected.durationDays} days</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted">Total ROI at maturity</span>
-                  <span className="font-mono font-semibold text-brand">{money(projectedRoi)}</span>
+                  <span className="text-muted">ROI at maturity</span>
+                  <span className="font-mono font-semibold text-brand">
+                    {money(projectedMin)} – {money(projectedMax)}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t border-line pt-2">
                   <span className="text-muted">You receive back</span>
-                  <span className="font-mono text-ink">{money(numericAmount + projectedRoi)}</span>
+                  <span className="font-mono text-ink">
+                    {money(numericAmount + projectedMin)} – {money(numericAmount + projectedMax)}
+                  </span>
                 </div>
+                <p className="border-t border-line pt-2 text-xs text-faint">
+                  Your exact rate is drawn from this range and locked when you confirm.
+                </p>
               </div>
 
               <div className="flex items-center justify-between rounded-xl border border-line px-4 py-3 text-sm">

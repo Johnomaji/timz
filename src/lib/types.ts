@@ -2,8 +2,6 @@ export type Role = "user" | "admin";
 
 export type UserStatus = "active" | "suspended";
 
-export type KycStatus = "unverified" | "pending" | "verified" | "rejected";
-
 export interface User {
   id: string;
   name: string;
@@ -17,7 +15,6 @@ export interface User {
   phone: string;
   joinedAt: string;
   lastActiveAt: string;
-  kycStatus: KycStatus;
   referralCode: string;
   referredBy: string | null;
   twoFactor: boolean;
@@ -27,7 +24,8 @@ export interface Plan {
   id: string;
   name: string;
   tagline: string;
-  dailyRate: number;
+  roiMinPct: number;
+  roiMaxPct: number;
   durationDays: number;
   minAmount: number;
   maxAmount: number;
@@ -45,6 +43,8 @@ export interface Investment {
   amount: number;
   startedAt: string;
   status: InvestmentStatus;
+  /** Total ROI % locked in at subscription, drawn from the plan's range. */
+  roiPct: number;
   payoutCollected: number;
 }
 
@@ -69,20 +69,6 @@ export interface Transaction {
   note: string;
   createdAt: string;
   resolvedAt: string | null;
-}
-
-export interface KycSubmission {
-  id: string;
-  userId: string;
-  fullName: string;
-  documentType: "passport" | "national_id" | "drivers_license";
-  documentNumber: string;
-  fileName: string;
-  fileSize: number;
-  status: KycStatus;
-  submittedAt: string;
-  reviewedAt: string | null;
-  reviewNote: string;
 }
 
 export interface Notification {
@@ -112,7 +98,6 @@ export interface DB {
   plans: Plan[];
   investments: Investment[];
   transactions: Transaction[];
-  kyc: KycSubmission[];
   notifications: Notification[];
   settings: Settings;
   sessionUserId: string | null;

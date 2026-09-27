@@ -1,15 +1,14 @@
 import type {
   DB,
   Investment,
-  KycSubmission,
   Notification,
   Plan,
   Transaction,
   User,
 } from "./types";
 
-export const DEMO_USER = { email: "user@the5group.io", password: "user123" };
-export const DEMO_ADMIN = { email: "admin@the5group.io", password: "admin123" };
+export const DEMO_USER = { email: "user@apexvest.io", password: "user123" };
+export const DEMO_ADMIN = { email: "admin@apexvest.io", password: "admin123" };
 
 function mulberry32(seed: number) {
   let a = seed;
@@ -27,65 +26,55 @@ const daysAgo = (days: number, hourOffset = 0) =>
 
 export const PLANS: Plan[] = [
   {
-    id: "plan_starter",
-    name: "Starter",
-    tagline: "Test the waters with a low entry point",
-    dailyRate: 1.2,
-    durationDays: 15,
+    id: "plan_3m",
+    name: "3 Months",
+    tagline: "Short lock-up to get started",
+    roiMinPct: 10,
+    roiMaxPct: 15,
+    durationDays: 90,
     minAmount: 100,
-    maxAmount: 2_500,
+    maxAmount: 10_000,
     accent: "cyan",
-    perks: ["Daily ROI credited automatically", "Principal returned at maturity", "Email support"],
+    perks: [
+      "Rate locked in when you subscribe",
+      "Principal plus ROI paid at maturity",
+      "Email support",
+    ],
     active: true,
   },
   {
-    id: "plan_growth",
-    name: "Growth",
+    id: "plan_6m",
+    name: "6 Months",
     tagline: "Our most popular balance of yield and term",
-    dailyRate: 1.8,
-    durationDays: 30,
-    minAmount: 2_500,
-    maxAmount: 15_000,
+    roiMinPct: 20,
+    roiMaxPct: 25,
+    durationDays: 180,
+    minAmount: 10_000,
+    maxAmount: 50_000,
     accent: "brand",
     perks: [
-      "Daily ROI credited automatically",
-      "Principal returned at maturity",
+      "Rate locked in when you subscribe",
+      "Principal plus ROI paid at maturity",
       "Priority withdrawals",
       "Dedicated account manager",
     ],
     active: true,
   },
   {
-    id: "plan_pro",
-    name: "Pro Trader",
-    tagline: "Higher allocation, compounding yield",
-    dailyRate: 2.4,
-    durationDays: 45,
-    minAmount: 15_000,
-    maxAmount: 75_000,
+    id: "plan_1y",
+    name: "1 Year",
+    tagline: "Longest term, highest allocation",
+    roiMinPct: 45,
+    roiMaxPct: 55,
+    durationDays: 365,
+    minAmount: 50_000,
+    maxAmount: 500_000,
     accent: "violet",
     perks: [
-      "Daily ROI credited automatically",
-      "Principal returned at maturity",
+      "Rate locked in when you subscribe",
+      "Principal plus ROI paid at maturity",
       "Zero withdrawal fees",
       "Quarterly strategy calls",
-    ],
-    active: true,
-  },
-  {
-    id: "plan_institutional",
-    name: "Institutional",
-    tagline: "Bespoke mandates for treasuries and funds",
-    dailyRate: 3.1,
-    durationDays: 60,
-    minAmount: 75_000,
-    maxAmount: 500_000,
-    accent: "warn",
-    perks: [
-      "Daily ROI credited automatically",
-      "Principal returned at maturity",
-      "Zero withdrawal fees",
-      "Segregated custody reporting",
       "24/7 desk access",
     ],
     active: true,
@@ -124,8 +113,7 @@ export function seedDb(): DB {
     phone: "+65 8123 4477",
     joinedAt: daysAgo(420),
     lastActiveAt: daysAgo(0, 1),
-    kycStatus: "verified",
-    referralCode: "T5G-ADMIN",
+    referralCode: "APEX-ADMIN",
     referredBy: null,
     twoFactor: true,
   };
@@ -143,8 +131,7 @@ export function seedDb(): DB {
     phone: "+44 7700 900112",
     joinedAt: daysAgo(96),
     lastActiveAt: daysAgo(0),
-    kycStatus: "verified",
-    referralCode: "T5G-JW4Q",
+    referralCode: "APEX-JW4Q",
     referredBy: null,
     twoFactor: false,
   };
@@ -152,7 +139,6 @@ export function seedDb(): DB {
   const users: User[] = [admin, primary];
 
   PEOPLE.forEach(([name, email, country], index) => {
-    const kycRoll = rand();
     users.push({
       id: `usr_${index + 10}`,
       name,
@@ -166,9 +152,7 @@ export function seedDb(): DB {
       phone: `+1 ${Math.floor(200 + rand() * 700)} ${Math.floor(1000 + rand() * 8999)}`,
       joinedAt: daysAgo(Math.floor(6 + rand() * 300)),
       lastActiveAt: daysAgo(Math.floor(rand() * 9), Math.floor(rand() * 20)),
-      kycStatus:
-        kycRoll > 0.66 ? "verified" : kycRoll > 0.38 ? "pending" : kycRoll > 0.2 ? "unverified" : "rejected",
-      referralCode: `T5G-${name.split(" ")[0]!.slice(0, 2).toUpperCase()}${Math.floor(10 + rand() * 89)}`,
+      referralCode: `APEX-${name.split(" ")[0]!.slice(0, 2).toUpperCase()}${Math.floor(10 + rand() * 89)}`,
       referredBy: index < 3 ? primary.id : null,
       twoFactor: rand() > 0.6,
     });
@@ -182,13 +166,13 @@ export function seedDb(): DB {
   };
 
   // Primary demo user gets a rich, readable history.
-  const demoInvestments: [string, number, number][] = [
-    ["plan_growth", 8_000, 12],
-    ["plan_starter", 1_500, 5],
-    ["plan_pro", 20_000, 38],
+  const demoInvestments: [string, number, number, number][] = [
+    ["plan_6m", 25_000, 120, 23.4],
+    ["plan_3m", 5_000, 95, 12.8],
+    ["plan_1y", 60_000, 40, 51.2],
   ];
 
-  demoInvestments.forEach(([planId, amount, age], i) => {
+  demoInvestments.forEach(([planId, amount, age, roiPct], i) => {
     const plan = PLANS.find((p) => p.id === planId)!;
     const matured = age >= plan.durationDays;
     investments.push({
@@ -198,7 +182,8 @@ export function seedDb(): DB {
       amount,
       startedAt: daysAgo(age),
       status: matured ? "completed" : "active",
-      payoutCollected: matured ? amount * (plan.dailyRate / 100) * plan.durationDays : 0,
+      roiPct,
+      payoutCollected: matured ? (amount * roiPct) / 100 : 0,
     });
     addTx({
       userId: primary.id,
@@ -255,9 +240,9 @@ export function seedDb(): DB {
       kind: "earning",
       amount: Math.round((110 + rand() * 260) * 100) / 100,
       status: "completed",
-      method: "Daily ROI",
+      method: "ROI accrual",
       reference: `ROI-${9000 + d}`,
-      note: "Automated plan payout",
+      note: "Accrued on active plans",
       createdAt: daysAgo(d, 4),
       resolvedAt: daysAgo(d, 4),
     });
@@ -271,7 +256,7 @@ export function seedDb(): DB {
       status: "completed",
       method: "Referral commission",
       reference: `REF-${7100 + i}`,
-      note: `Commission from ${u.name}`,
+      note: `10% of ${u.name}'s plan ROI`,
       createdAt: daysAgo(Math.floor(3 + rand() * 40)),
       resolvedAt: daysAgo(Math.floor(3 + rand() * 40)),
     });
@@ -283,6 +268,8 @@ export function seedDb(): DB {
     const age = Math.floor(rand() * plan.durationDays * 1.4);
     if (u.status === "active" && rand() > 0.25) {
       const amount = between(plan.minAmount, Math.min(plan.maxAmount, plan.minAmount * 4));
+      const roiPct =
+        Math.round((plan.roiMinPct + rand() * (plan.roiMaxPct - plan.roiMinPct)) * 10) / 10;
       investments.push({
         id: `inv_${index}`,
         userId: u.id,
@@ -290,7 +277,8 @@ export function seedDb(): DB {
         amount,
         startedAt: daysAgo(age),
         status: age >= plan.durationDays ? "completed" : "active",
-        payoutCollected: age >= plan.durationDays ? amount * (plan.dailyRate / 100) * plan.durationDays : 0,
+        roiPct,
+        payoutCollected: age >= plan.durationDays ? (amount * roiPct) / 100 : 0,
       });
     }
 
@@ -321,28 +309,12 @@ export function seedDb(): DB {
     }
   });
 
-  const kyc: KycSubmission[] = users
-    .filter((u) => u.role === "user" && (u.kycStatus === "pending" || u.kycStatus === "rejected"))
-    .map((u, i) => ({
-      id: `kyc_${i}`,
-      userId: u.id,
-      fullName: u.name,
-      documentType: pick(["passport", "national_id", "drivers_license"] as const),
-      documentNumber: `${u.country.slice(0, 2).toUpperCase()}${Math.floor(1_000_000 + rand() * 8_999_999)}`,
-      fileName: `${u.name.split(" ")[0]!.toLowerCase()}-id-front.jpg`,
-      fileSize: Math.floor(180_000 + rand() * 2_400_000),
-      status: u.kycStatus === "rejected" ? "rejected" : "pending",
-      submittedAt: daysAgo(Math.floor(1 + rand() * 12), Math.floor(rand() * 20)),
-      reviewedAt: u.kycStatus === "rejected" ? daysAgo(Math.floor(rand() * 4)) : null,
-      reviewNote: u.kycStatus === "rejected" ? "Document image was blurred and unreadable." : "",
-    }));
-
   const notifications: Notification[] = [
     {
       id: "ntf_1",
       userId: primary.id,
-      title: "Daily ROI credited",
-      body: "Your Pro Trader plan paid out $480.00 into your available balance.",
+      title: "3 Months plan matured",
+      body: "Your 3 Months plan paid $5,640.00 — principal plus ROI — into your available balance.",
       tone: "success",
       read: false,
       createdAt: daysAgo(0, 3),
@@ -368,8 +340,8 @@ export function seedDb(): DB {
     {
       id: "ntf_4",
       userId: primary.id,
-      title: "Identity verified",
-      body: "Your KYC documents were approved. All withdrawal limits are now lifted.",
+      title: "Referral reward earned",
+      body: "You received 10% of a referral's matured plan ROI.",
       tone: "success",
       read: true,
       createdAt: daysAgo(40),
@@ -378,7 +350,7 @@ export function seedDb(): DB {
       id: "ntf_5",
       userId: admin.id,
       title: "4 items need review",
-      body: "Pending deposits, withdrawals and KYC submissions are waiting in your queues.",
+      body: "Pending deposits and withdrawals are waiting in your queues.",
       tone: "warning",
       read: false,
       createdAt: daysAgo(0, 2),
@@ -392,15 +364,14 @@ export function seedDb(): DB {
     transactions: transactions.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     ),
-    kyc,
     notifications,
     settings: {
-      platformName: "The5Group",
-      supportEmail: "support@the5group.io",
+      platformName: "ApexVest",
+      supportEmail: "support@apexvest.io",
       minDeposit: 100,
       minWithdrawal: 50,
       withdrawalFeePct: 1.5,
-      referralCommissionPct: 5,
+      referralCommissionPct: 10,
       maintenanceMode: false,
       signupsOpen: true,
       wallets: [
