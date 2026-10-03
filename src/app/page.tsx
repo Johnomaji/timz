@@ -35,8 +35,8 @@ const accentText = {
 const FEATURES = [
   {
     icon: Zap,
-    title: "Your rate, locked on day one",
-    body: "Every plan quotes a range, and your subscription locks a rate inside it. Watch ROI accrue on your dashboard and collect principal plus profit at maturity.",
+    title: "A target rate, set on day one",
+    body: "Every plan quotes a range, and your subscription is assigned a target rate inside it. Watch ROI accrue on your dashboard and collect principal plus profit at maturity.",
   },
   {
     icon: ShieldCheck,
@@ -76,24 +76,28 @@ const STEPS = [
 
 const FAQS = [
   {
-    q: "Why is the return shown as a range?",
-    a: "Allocations are deployed across market-neutral strategies — funding-rate arbitrage, liquidity provision and basis trades. Each plan publishes the band those strategies deliver over its term, and your subscription locks a single rate from that band, so you know your exact payout from day one.",
+    q: "What does the platform invest in?",
+    a: "We diversify across real-world assets and financial markets, including established businesses, real estate and landed properties, equities, commodities, forex, and emerging digital opportunities such as Web3.",
   },
   {
-    q: "When can I withdraw?",
-    a: "Your available balance can be withdrawn at any time, subject to admin approval of the request. Capital committed to an active plan unlocks at the end of the plan term along with its accrued ROI.",
+    q: "Why diversify across different sectors?",
+    a: "Different investments perform differently over time. By combining businesses, property, traditional markets, and digital opportunities, we aim to build a more resilient portfolio and reduce dependence on a single market.",
   },
   {
-    q: "Is there a fee?",
-    a: "Deposits are free. Withdrawals carry a small network and processing fee shown before you confirm. Pro Trader and Institutional plans waive the withdrawal fee entirely.",
+    q: "How are returns generated?",
+    a: "Returns can come from business growth, property appreciation and income, dividends, interest, trading opportunities, and market movements. Our strategies are designed with a long-term focus rather than relying on a single trade or market.",
   },
   {
-    q: "What does the referral programme pay?",
-    a: "You receive 10% of the ROI earned by anyone who signs up with your link, credited to your balance when their plan matures and pays out.",
+    q: "What makes the strategy sustainable?",
+    a: "We focus on assets and strategies with the potential to create value over time. Capital is allocated across different opportunities while risk and market conditions are continuously monitored.",
   },
   {
-    q: "Is this a real product?",
-    a: "No — this is a front-end demonstration build. All accounts, balances and transactions are mock data stored in your own browser, and no real funds are ever involved.",
+    q: "Are returns guaranteed?",
+    a: "No investment can honestly guarantee a return. Our objective is to pursue consistent, sustainable returns while managing risk and protecting capital.",
+  },
+  {
+    q: "How do I get started?",
+    a: "Create an account, complete verification, choose an available investment plan, and fund your account through the approved payment method.",
   },
 ];
 
@@ -214,8 +218,8 @@ export default function LandingPage() {
               Three plans. One dashboard.
             </h2>
             <p className="mt-3 text-muted">
-              Pick a term and your rate is locked in for its full length. Principal and ROI are paid
-              together at maturity — no lock-in beyond the term you pick.
+              Pick a term and your target rate is set for its full length. Principal and ROI are
+              paid together at maturity — no lock-in beyond the term you pick.
             </p>
           </div>
 
@@ -357,6 +361,15 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          <figure className="mt-10 border-l-2 border-brand/60 pl-5">
+            <blockquote className="text-lg leading-relaxed text-ink">
+              Diversify. Invest in real value. Manage risk. Compound for the long term.
+            </blockquote>
+            <figcaption className="mt-2 text-xs tracking-wide text-faint uppercase">
+              Our philosophy
+            </figcaption>
+          </figure>
         </div>
       </section>
 
