@@ -24,29 +24,39 @@ insert into public.plans (
   min_amount, max_amount, accent, perks, active, sort_order
 ) values
   (
-    'plan_3m', '3 Months', 'Short lock-up to get started',
-    10, 15, 90, 100, 10000, 'cyan',
+    'plan_1m', '1 Month', 'Fixed rate, shortest commitment',
+    2, 2, 30, 500, 100000, 'warn',
     array[
-      'Rate locked in when you subscribe',
+      'Flat 2% — no rate variance',
       'Principal plus ROI paid at maturity',
       'Email support'
     ],
     true, 1
   ),
   (
+    'plan_3m', '3 Months', 'Short lock-up to get started',
+    6, 8, 90, 500, 100000, 'cyan',
+    array[
+      'Rate locked in when you subscribe',
+      'Principal plus ROI paid at maturity',
+      'Email support'
+    ],
+    true, 2
+  ),
+  (
     'plan_6m', '6 Months', 'Our most popular balance of yield and term',
-    20, 25, 180, 10000, 50000, 'brand',
+    20, 30, 180, 500, 100000, 'brand',
     array[
       'Rate locked in when you subscribe',
       'Principal plus ROI paid at maturity',
       'Priority withdrawals',
       'Dedicated account manager'
     ],
-    true, 2
+    true, 3
   ),
   (
-    'plan_1y', '1 Year', 'Longest term, highest allocation',
-    45, 55, 365, 50000, 500000, 'violet',
+    'plan_1y', '1 Year', 'Longest term, highest return',
+    70, 80, 365, 500, 100000, 'violet',
     array[
       'Rate locked in when you subscribe',
       'Principal plus ROI paid at maturity',
@@ -54,7 +64,7 @@ insert into public.plans (
       'Quarterly strategy calls',
       '24/7 desk access'
     ],
-    true, 3
+    true, 4
   );
 
 -- Settings ------------------------------------------------------------------
@@ -200,8 +210,9 @@ begin
   for plan_rec in
     select * from (values
       ('plan_6m', 25000::numeric, 120, 23.4::numeric),
-      ('plan_3m',  5000::numeric,  95, 12.8::numeric),
-      ('plan_1y', 60000::numeric,  40, 51.2::numeric)
+      ('plan_3m',  5000::numeric,  95,  7.2::numeric),
+      ('plan_1y', 60000::numeric,  40, 74.5::numeric),
+      ('plan_1m',  2000::numeric,  45,  2.0::numeric)
     ) as t(plan_id, amount, age_days, roi_pct)
   loop
     insert into public.investments (user_id, plan_id, amount, started_at, status, roi_pct, payout_collected)

@@ -18,9 +18,9 @@ import {
   Th,
   Textarea,
 } from "@/components/ui";
-import { useStore } from "@/lib/store";
+import { useMoney, useStore } from "@/lib/store";
 import type { Transaction, TxKind } from "@/lib/types";
-import { dateTime, money } from "@/lib/utils";
+import { dateTime } from "@/lib/utils";
 
 type StatusFilter = "pending" | "approved" | "rejected" | "all";
 
@@ -34,6 +34,7 @@ export function ApprovalQueue({
   rejectHint: string;
 }) {
   const { db, resolveTransaction } = useStore();
+  const money = useMoney();
   const [status, setStatus] = useState<StatusFilter>("pending");
   const [query, setQuery] = useState("");
   const [action, setAction] = useState<{ tx: Transaction; decision: "approved" | "rejected" } | null>(

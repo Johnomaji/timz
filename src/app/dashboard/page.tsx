@@ -22,11 +22,12 @@ import {
   Progress,
   statusTone,
 } from "@/components/ui";
-import { useStore, useUserInvestments } from "@/lib/store";
-import { dayKey, emptyDayBuckets, money, shortDate, timeAgo } from "@/lib/utils";
+import { useMoney, useStore, useUserInvestments } from "@/lib/store";
+import { dayKey, emptyDayBuckets, shortDate, timeAgo } from "@/lib/utils";
 
 export default function DashboardOverview() {
   const { db, currentUser, collectInvestment } = useStore();
+  const money = useMoney();
   const investments = useUserInvestments(currentUser?.id);
 
   const myTransactions = useMemo(

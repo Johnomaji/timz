@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PageHeading } from "@/components/shell";
 import { Button, Card, CardHeader, Field, Input, Modal, Toggle } from "@/components/ui";
-import { useStore } from "@/lib/store";
+import { useMoney, useStore } from "@/lib/store";
 import type { Settings } from "@/lib/types";
-import { money } from "@/lib/utils";
 
 export default function AdminSettingsPage() {
   const router = useRouter();
   const { db, saveSettings, resetDemoData, logout } = useStore();
+  const money = useMoney();
   const [form, setForm] = useState<Settings>(db.settings);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");

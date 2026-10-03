@@ -16,11 +16,12 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { useStore } from "@/lib/store";
-import { dateTime, money } from "@/lib/utils";
+import { useMoney, useStore } from "@/lib/store";
+import { dateTime } from "@/lib/utils";
 
 export default function WithdrawPage() {
   const { db, currentUser, requestWithdrawal } = useStore();
+  const money = useMoney();
   const [amount, setAmount] = useState("");
   const [asset, setAsset] = useState(db.settings.wallets[0]!.asset);
   const [address, setAddress] = useState("");

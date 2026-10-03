@@ -15,11 +15,12 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { useStore } from "@/lib/store";
-import { cn, dateTime, money } from "@/lib/utils";
+import { useMoney, useStore } from "@/lib/store";
+import { cn, dateTime } from "@/lib/utils";
 
 export default function DepositPage() {
   const { db, currentUser, requestDeposit } = useStore();
+  const money = useMoney();
   const [walletIndex, setWalletIndex] = useState(0);
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");

@@ -24,11 +24,12 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { buildInvestmentView, useStore, type InvestmentView } from "@/lib/store";
-import { dayKey, emptyDayBuckets, money, timeAgo } from "@/lib/utils";
+import { buildInvestmentView, useMoney, useStore, type InvestmentView } from "@/lib/store";
+import { dayKey, emptyDayBuckets, timeAgo } from "@/lib/utils";
 
 export default function AdminOverview() {
   const { db } = useStore();
+  const money = useMoney();
 
   const investors = db.users.filter((u) => u.role === "user");
   const pendingDeposits = db.transactions.filter((t) => t.kind === "deposit" && t.status === "pending");

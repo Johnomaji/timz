@@ -24,16 +24,33 @@ function mulberry32(seed: number) {
 const daysAgo = (days: number, hourOffset = 0) =>
   new Date(Date.now() - days * 86_400_000 - hourOffset * 3_600_000).toISOString();
 
+const PLAN_LIMITS = { minAmount: 500, maxAmount: 100_000 };
+
 export const PLANS: Plan[] = [
+  {
+    id: "plan_1m",
+    name: "1 Month",
+    tagline: "Fixed rate, shortest commitment",
+    roiMinPct: 2,
+    roiMaxPct: 2,
+    durationDays: 30,
+    ...PLAN_LIMITS,
+    accent: "warn",
+    perks: [
+      "Flat 2% — no rate variance",
+      "Principal plus ROI paid at maturity",
+      "Email support",
+    ],
+    active: true,
+  },
   {
     id: "plan_3m",
     name: "3 Months",
     tagline: "Short lock-up to get started",
-    roiMinPct: 10,
-    roiMaxPct: 15,
+    roiMinPct: 6,
+    roiMaxPct: 8,
     durationDays: 90,
-    minAmount: 100,
-    maxAmount: 10_000,
+    ...PLAN_LIMITS,
     accent: "cyan",
     perks: [
       "Rate locked in when you subscribe",
@@ -47,10 +64,9 @@ export const PLANS: Plan[] = [
     name: "6 Months",
     tagline: "Our most popular balance of yield and term",
     roiMinPct: 20,
-    roiMaxPct: 25,
+    roiMaxPct: 30,
     durationDays: 180,
-    minAmount: 10_000,
-    maxAmount: 50_000,
+    ...PLAN_LIMITS,
     accent: "brand",
     perks: [
       "Rate locked in when you subscribe",
@@ -63,12 +79,11 @@ export const PLANS: Plan[] = [
   {
     id: "plan_1y",
     name: "1 Year",
-    tagline: "Longest term, highest allocation",
-    roiMinPct: 45,
-    roiMaxPct: 55,
+    tagline: "Longest term, highest return",
+    roiMinPct: 70,
+    roiMaxPct: 80,
     durationDays: 365,
-    minAmount: 50_000,
-    maxAmount: 500_000,
+    ...PLAN_LIMITS,
     accent: "violet",
     perks: [
       "Rate locked in when you subscribe",
@@ -168,8 +183,9 @@ export function seedDb(): DB {
   // Primary demo user gets a rich, readable history.
   const demoInvestments: [string, number, number, number][] = [
     ["plan_6m", 25_000, 120, 23.4],
-    ["plan_3m", 5_000, 95, 12.8],
-    ["plan_1y", 60_000, 40, 51.2],
+    ["plan_3m", 5_000, 95, 7.2],
+    ["plan_1y", 60_000, 40, 74.5],
+    ["plan_1m", 2_000, 45, 2],
   ];
 
   demoInvestments.forEach(([planId, amount, age, roiPct], i) => {

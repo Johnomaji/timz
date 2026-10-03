@@ -17,9 +17,9 @@ import {
   Textarea,
   Toggle,
 } from "@/components/ui";
-import { useStore } from "@/lib/store";
+import { useMoney, useStore } from "@/lib/store";
 import type { Plan } from "@/lib/types";
-import { money, uid } from "@/lib/utils";
+import { pctRange, uid } from "@/lib/utils";
 
 const ACCENTS: Plan["accent"][] = ["brand", "violet", "cyan", "warn"];
 
@@ -27,11 +27,11 @@ const blankPlan = (): Plan => ({
   id: uid("plan"),
   name: "",
   tagline: "",
-  roiMinPct: 10,
-  roiMaxPct: 15,
+  roiMinPct: 6,
+  roiMaxPct: 8,
   durationDays: 90,
-  minAmount: 100,
-  maxAmount: 10_000,
+  minAmount: 500,
+  maxAmount: 100_000,
   accent: "brand",
   perks: ["Rate locked in when you subscribe", "Principal plus ROI paid at maturity"],
   active: true,
@@ -39,6 +39,7 @@ const blankPlan = (): Plan => ({
 
 export default function AdminPlansPage() {
   const { db, savePlan, deletePlan } = useStore();
+  const money = useMoney();
   const [editing, setEditing] = useState<Plan | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [perkText, setPerkText] = useState("");
@@ -141,7 +142,7 @@ export default function AdminPlansPage() {
                   </Td>
                   <Td className="text-right font-mono">{plan.durationDays}d</Td>
                   <Td className="text-right font-mono text-brand">
-                    {plan.roiMinPct}–{plan.roiMaxPct}%
+                    {pctRange(plan.roiMinPct, plan.roiMaxPct)}
                   </Td>
                   <Td className="whitespace-nowrap text-muted">
                     {money(plan.minAmount, { compact: true })} –{" "}
@@ -289,7 +290,7 @@ export default function AdminPlansPage() {
                 Each subscription locks a rate drawn from this range
               </span>
               <span className="font-mono font-semibold text-brand">
-                {editing.roiMinPct}–{editing.roiMaxPct}% / {editing.durationDays}d
+                {pctRange(editing.roiMinPct, editing.roiMaxPct)} / {editing.durationDays}d
               </span>
             </div>
 

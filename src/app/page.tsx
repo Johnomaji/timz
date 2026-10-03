@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { CurrencySwitcher } from "@/components/shell";
 import { Badge, Button, Card } from "@/components/ui";
-import { useStore } from "@/lib/store";
-import { cn, money } from "@/lib/utils";
+import { useMoney, useStore } from "@/lib/store";
+import { cn, pctRange } from "@/lib/utils";
 
 const accentRing = {
   brand: "hover:border-brand/50",
@@ -103,6 +104,7 @@ const FAQS = [
 
 export default function LandingPage() {
   const { db, currentUser } = useStore();
+  const money = useMoney();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const activePlans = db.plans.filter((p) => p.active);
@@ -135,6 +137,7 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <CurrencySwitcher />
             {currentUser ? (
               <Link href={dashboardHref}>
                 <Button size="sm">
@@ -243,7 +246,7 @@ export default function LandingPage() {
 
                   <div className="mt-5 flex items-end gap-1.5">
                     <span className={cn("font-mono text-4xl font-semibold", accentText[plan.accent])}>
-                      {plan.roiMinPct}–{plan.roiMaxPct}%
+                      {pctRange(plan.roiMinPct, plan.roiMaxPct)}
                     </span>
                     <span className="pb-1 text-sm text-muted">total ROI</span>
                   </div>

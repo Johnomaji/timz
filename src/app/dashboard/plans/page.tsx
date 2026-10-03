@@ -4,9 +4,9 @@ import { AlertCircle, Check, TrendingUp, Wallet } from "lucide-react";
 import { useState } from "react";
 import { PageHeading } from "@/components/shell";
 import { Badge, Button, Card, Field, Input, Modal, Progress } from "@/components/ui";
-import { useStore, useUserInvestments } from "@/lib/store";
+import { useMoney, useStore, useUserInvestments } from "@/lib/store";
 import type { Plan } from "@/lib/types";
-import { cn, money, shortDate } from "@/lib/utils";
+import { cn, pctRange, shortDate } from "@/lib/utils";
 
 const accent = {
   brand: { text: "text-brand", border: "hover:border-brand/50", bg: "bg-brand/12" },
@@ -17,6 +17,7 @@ const accent = {
 
 export default function PlansPage() {
   const { db, currentUser, invest } = useStore();
+  const money = useMoney();
   const investments = useUserInvestments(currentUser?.id);
   const [selected, setSelected] = useState<Plan | null>(null);
   const [amount, setAmount] = useState("");
@@ -50,6 +51,7 @@ export default function PlansPage() {
   const numericAmount = Number(amount) || 0;
   const projectedMin = selected ? (numericAmount * selected.roiMinPct) / 100 : 0;
   const projectedMax = selected ? (numericAmount * selected.roiMaxPct) / 100 : 0;
+  const flatRate = selected?.roiMinPct === selected?.roiMaxPct;
 
   const active = investments.filter((i) => i.status === "active");
 
@@ -96,7 +98,7 @@ export default function PlansPage() {
 
                 <div className="mt-5 flex items-end gap-1.5">
                   <span className={cn("font-mono text-4xl font-semibold", style.text)}>
-                    {plan.roiMinPct}–{plan.roiMaxPct}%
+                    {pctRange(plan.roiMinPct, plan.roiMaxPct)}
                   </span>
                   <span className="pb-1 text-sm text-muted">total ROI</span>
                 </div>
@@ -176,7 +178,7 @@ export default function PlansPage() {
           done
             ? "Your allocation is live and your rate is locked for the full term."
             : selected
-              ? `${selected.roiMinPct}–${selected.roiMaxPct}% total over ${selected.durationDays} days`
+              ? `${pctRange(selected.roiMinPct, selected.roiMaxPct)} total over ${selected.durationDays} days`
               : undefined
         }
         footer={
@@ -250,17 +252,23 @@ export default function PlansPage() {
                 <div className="flex justify-between">
                   <span className="text-muted">ROI at maturity</span>
                   <span className="font-mono font-semibold text-brand">
-                    {money(projectedMin)} – {money(projectedMax)}
+                    {flatRate
+                      ? money(projectedMax)
+                      : `${money(projectedMin)} – ${money(projectedMax)}`}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-line pt-2">
                   <span className="text-muted">You receive back</span>
                   <span className="font-mono text-ink">
-                    {money(numericAmount + projectedMin)} – {money(numericAmount + projectedMax)}
+                    {flatRate
+                      ? money(numericAmount + projectedMax)
+                      : `${money(numericAmount + projectedMin)} – ${money(numericAmount + projectedMax)}`}
                   </span>
                 </div>
                 <p className="border-t border-line pt-2 text-xs text-faint">
-                  Your exact rate is drawn from this range and locked when you confirm.
+                  {flatRate
+                    ? "This plan pays a fixed rate, locked when you confirm."
+                    : "Your exact rate is drawn from this range and locked when you confirm."}
                 </p>
               </div>
 

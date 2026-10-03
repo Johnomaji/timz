@@ -18,14 +18,15 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { buildInvestmentView, useStore, type InvestmentView } from "@/lib/store";
+import { buildInvestmentView, useMoney, useStore, type InvestmentView } from "@/lib/store";
 import type { User } from "@/lib/types";
-import { money, shortDate, timeAgo } from "@/lib/utils";
+import { shortDate, timeAgo } from "@/lib/utils";
 
 type Filter = "all" | "active" | "suspended";
 
 export default function AdminUsersPage() {
   const { db, setUserStatus, adjustBalance } = useStore();
+  const money = useMoney();
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState<User | null>(null);

@@ -5,6 +5,7 @@ import {
   ArrowUpFromLine,
   Bell,
   ChevronDown,
+  Coins,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -22,9 +23,10 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useStore } from "@/lib/store";
+import { CURRENCIES, type CurrencyCode } from "@/lib/currency";
+import { useMoney, useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
-import { cn, money, timeAgo } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
 import { Avatar, Badge } from "./ui";
 
 interface NavItem {
@@ -67,6 +69,7 @@ export function Brand({ className }: { className?: string }) {
 
 export function AppShell({ role, children }: { role: Role; children: ReactNode }) {
   const { currentUser, db, logout } = useStore();
+  const money = useMoney();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -203,6 +206,29 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   );
 }
 
+export function CurrencySwitcher({ className }: { className?: string }) {
+  const { displayCurrency, setDisplayCurrency } = useStore();
+
+  return (
+    <label className={cn("relative flex items-center", className)}>
+      <span className="sr-only">Display currency</span>
+      <Coins className="pointer-events-none absolute left-2 size-4 text-muted" />
+      <select
+        value={displayCurrency}
+        onChange={(e) => setDisplayCurrency(e.target.value as CurrencyCode)}
+        className="appearance-none rounded-lg border border-line bg-surface-2 py-2 pr-7 pl-7 font-mono text-xs text-ink transition-colors hover:border-brand/50 focus:border-brand focus:outline-none"
+      >
+        {CURRENCIES.map(({ code, label }) => (
+          <option key={code} value={code} title={label}>
+            {code}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2 size-3.5 text-muted" />
+    </label>
+  );
+}
+
 function Topbar({ onMenu }: { onMenu: () => void }) {
   const { currentUser, db, markAllNotificationsRead, markNotificationRead, logout } = useStore();
   const router = useRouter();
@@ -251,6 +277,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </div>
 
       <div ref={containerRef} className="flex items-center gap-1.5">
+        <CurrencySwitcher />
         <div className="relative">
           <button
             onClick={() => setOpenPanel(openPanel === "bell" ? null : "bell")}

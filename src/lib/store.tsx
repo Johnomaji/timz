@@ -9,6 +9,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import {
+  BASE_CURRENCY,
+  FALLBACK_RATES,
+  formatCurrency,
+  isCurrencyCode,
+  loadRates,
+  type CurrencyCode,
+  type Rates,
+} from "./currency";
 import { seedDb } from "./seed";
 import type {
   DB,
@@ -21,7 +30,10 @@ import type {
 } from "./types";
 import { daysBetween, uid } from "./utils";
 
-const STORAGE_KEY = "apexvest.db.v4";
+const STORAGE_KEY = "apexvest.db.v5";
+
+// Separate from STORAGE_KEY so resetDemoData() leaves the currency choice alone.
+const CURRENCY_STORAGE_KEY = "apexvest.currency.v1";
 
 /** Each subscription draws its own total-return rate from the plan's advertised range. */
 function lockRoiPct(plan: Plan) {
@@ -68,6 +80,9 @@ interface StoreValue {
   deletePlan: (planId: string) => void;
   saveSettings: (settings: Settings) => void;
   resetDemoData: () => void;
+  displayCurrency: CurrencyCode;
+  setDisplayCurrency: (code: CurrencyCode) => void;
+  rates: Rates;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -97,6 +112,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Storage full or unavailable — the in-memory demo still works.
     }
   }, [db]);
+
+  const [displayCurrency, setCurrencyState] = useState<CurrencyCode>(BASE_CURRENCY);
+  const [rates, setRates] = useState<Rates>(FALLBACK_RATES);
+
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
+    } catch {
+      saved = null;
+    }
+    // Post-mount for the same hydration reason as the db read above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isCurrencyCode(saved)) setCurrencyState(saved);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    loadRates().then((next) => {
+      if (active) setRates(next);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const setDisplayCurrency = useCallback((code: CurrencyCode) => {
+    setCurrencyState(code);
+    try {
+      window.localStorage.setItem(CURRENCY_STORAGE_KEY, code);
+    } catch {
+      // Preference just won't survive a reload.
+    }
+  }, []);
 
   const currentUser = useMemo(
     () => db?.users.find((u) => u.id === db.sessionUserId) ?? null,
@@ -524,8 +573,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const fresh = seedDb();
         setDb(fresh);
       },
+
+      displayCurrency,
+      setDisplayCurrency,
+      rates,
     };
-  }, [db, currentUser, mutate]);
+  }, [db, currentUser, mutate, displayCurrency, setDisplayCurrency, rates]);
 
   if (!value) {
     return (
@@ -545,6 +598,20 @@ export function useStore() {
   const ctx = useContext(StoreContext);
   if (!ctx) throw new Error("useStore must be used inside StoreProvider");
   return ctx;
+}
+
+/**
+ * Formats a USD amount in the user's chosen display currency. Signature matches the
+ * plain money() helper so call sites only change which function they call. Amounts are
+ * stored in USD everywhere; conversion is presentation-only.
+ */
+export function useMoney() {
+  const { displayCurrency, rates } = useStore();
+  return useCallback(
+    (value: number, opts?: { compact?: boolean; sign?: boolean }) =>
+      formatCurrency(value, displayCurrency, rates, opts),
+    [displayCurrency, rates],
+  );
 }
 
 export function buildInvestmentView(inv: Investment, plans: Plan[]): InvestmentView | null {

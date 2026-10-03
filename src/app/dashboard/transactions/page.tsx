@@ -16,9 +16,9 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { useStore } from "@/lib/store";
+import { useMoney, useStore } from "@/lib/store";
 import type { TxKind } from "@/lib/types";
-import { dateTime, money } from "@/lib/utils";
+import { dateTime } from "@/lib/utils";
 
 type KindFilter = "all" | TxKind;
 
@@ -36,6 +36,7 @@ const OUTFLOWS: TxKind[] = ["withdrawal", "investment"];
 
 export default function TransactionsPage() {
   const { db, currentUser } = useStore();
+  const money = useMoney();
   const [kind, setKind] = useState<KindFilter>("all");
   const [status, setStatus] = useState("all");
   const [query, setQuery] = useState("");

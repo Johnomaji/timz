@@ -14,7 +14,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { cn, money } from "@/lib/utils";
+import { useMoney } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 const AXIS = { stroke: "#5a6a85", fontSize: 11 };
 
@@ -27,6 +28,8 @@ function ChartTooltip({
   payload?: { value?: number | string; name?: string }[];
   label?: string | number;
 }) {
+  // Above the early return: hooks cannot sit behind a conditional.
+  const money = useMoney();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs shadow-xl">
@@ -95,6 +98,7 @@ export function VolumeChart({ data }: { data: { label: string; value: number }[]
 const DONUT_COLORS = ["#10b981", "#8b5cf6", "#22d3ee", "#f59e0b", "#f43f5e"];
 
 export function AllocationDonut({ data }: { data: { name: string; value: number }[] }) {
+  const money = useMoney();
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (

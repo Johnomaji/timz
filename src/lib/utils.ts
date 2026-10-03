@@ -5,21 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function money(value: number, opts?: { compact?: boolean; sign?: boolean }) {
-  const abs = Math.abs(value);
-  const formatted = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    notation: opts?.compact && abs >= 10_000 ? "compact" : "standard",
-    minimumFractionDigits: opts?.compact && abs >= 10_000 ? 0 : 2,
-    maximumFractionDigits: opts?.compact && abs >= 10_000 ? 1 : 2,
-  }).format(abs);
-  if (opts?.sign && value !== 0) return `${value > 0 ? "+" : "-"}${formatted}`;
-  return value < 0 ? `-${formatted}` : formatted;
-}
-
 export function pct(value: number, digits = 2) {
   return `${value.toFixed(digits)}%`;
+}
+
+/** Collapses to a single figure for flat-rate plans, where roiMinPct === roiMaxPct. */
+export function pctRange(min: number, max: number) {
+  return min === max ? `${min}%` : `${min}–${max}%`;
 }
 
 export function shortDate(iso: string) {

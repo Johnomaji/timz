@@ -17,11 +17,12 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { useStore } from "@/lib/store";
-import { money, shortDate, timeAgo } from "@/lib/utils";
+import { useMoney, useStore } from "@/lib/store";
+import { shortDate, timeAgo } from "@/lib/utils";
 
 export default function ReferralsPage() {
   const { db, currentUser } = useStore();
+  const money = useMoney();
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
 
   const referred = useMemo(
