@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Ban, Minus, Plus, Search, ShieldCheck, Undo2, Users } from "lucide-react";
+import { Ban, Minus, Plus, ScanFace, Search, ShieldCheck, Undo2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeading } from "@/components/shell";
 import {
@@ -123,6 +123,7 @@ export default function AdminUsersPage() {
                 <Th className="text-right">Balance</Th>
                 <Th className="text-right">Deployed</Th>
                 <Th>Status</Th>
+                <Th>Verification</Th>
                 <Th>Last active</Th>
                 <Th className="text-right">Actions</Th>
               </tr>
@@ -148,6 +149,9 @@ export default function AdminUsersPage() {
                   </Td>
                   <Td>
                     <Badge tone={statusTone(user.status)}>{user.status}</Badge>
+                  </Td>
+                  <Td>
+                    <Badge tone={statusTone(user.kycStatus)}>{user.kycStatus}</Badge>
                   </Td>
                   <Td className="whitespace-nowrap text-muted">{timeAgo(user.lastActiveAt)}</Td>
                   <Td>
@@ -201,7 +205,7 @@ export default function AdminUsersPage() {
         open={adjust !== null}
         onClose={() => setAdjust(null)}
         title={adjust?.direction === 1 ? "Credit balance" : "Debit balance"}
-        description={adjust ? `${adjust.user.name} Â· current ${money(adjust.user.balance)}` : undefined}
+        description={adjust ? `${adjust.user.name} · current ${money(adjust.user.balance)}` : undefined}
         footer={
           <>
             <Button variant="ghost" onClick={() => setAdjust(null)}>
@@ -290,6 +294,10 @@ export default function AdminUsersPage() {
 
             <div className="flex flex-wrap gap-2">
               <Badge tone={statusTone(liveDetail.status)}>{liveDetail.status}</Badge>
+              <Badge tone={statusTone(liveDetail.kycStatus)}>
+                <ScanFace className="size-3" />
+                KYC {liveDetail.kycStatus}
+              </Badge>
               <Badge tone={liveDetail.twoFactor ? "success" : "neutral"}>
                 <ShieldCheck className="size-3" />
                 2FA {liveDetail.twoFactor ? "on" : "off"}
@@ -312,7 +320,7 @@ export default function AdminUsersPage() {
                       <div>
                         <p className="text-sm text-ink">{inv.plan.name}</p>
                         <p className="text-xs text-faint">
-                          {money(inv.amount)} Â· {Math.floor(inv.elapsedDays)}/
+                          {money(inv.amount)} · {Math.floor(inv.elapsedDays)}/
                           {inv.plan.durationDays} days
                         </p>
                       </div>

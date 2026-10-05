@@ -3,8 +3,10 @@
 import {
   ArrowDownToLine,
   ArrowRight,
+  Clock,
   Coins,
   PiggyBank,
+  ShieldCheck,
   Timer,
   TrendingUp,
   Wallet,
@@ -23,7 +25,64 @@ import {
   statusTone,
 } from "@/components/ui";
 import { useMoney, useStore, useUserInvestments } from "@/lib/store";
-import { dayKey, emptyDayBuckets, shortDate, timeAgo } from "@/lib/utils";
+import type { KycStatus } from "@/lib/types";
+import { cn, dayKey, emptyDayBuckets, shortDate, timeAgo } from "@/lib/utils";
+
+/** Nudge only — verification is optional, so this never blocks the dashboard. */
+function KycBanner({ status }: { status: KycStatus }) {
+  if (status === "approved") return null;
+
+  const pending = status === "pending";
+  const declined = status === "declined";
+
+  return (
+    <div
+      className={cn(
+        "mb-5 flex flex-wrap items-center gap-4 rounded-xl2 border px-5 py-4",
+        pending && "border-warn/30 bg-warn/10",
+        declined && "border-danger/30 bg-danger/10",
+        !pending && !declined && "border-brand/30 bg-brand/10",
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-xl",
+          pending && "bg-warn/15 text-warn",
+          declined && "bg-danger/15 text-danger",
+          !pending && !declined && "bg-brand/15 text-brand",
+        )}
+      >
+        {pending ? <Clock className="size-5" /> : <ShieldCheck className="size-5" />}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-ink">
+          {pending
+            ? "Verification in review"
+            : declined
+              ? "Verification unsuccessful"
+              : "Verify your identity"}
+        </p>
+        <p className="mt-0.5 text-sm text-muted">
+          {pending
+            ? "We'll email you as soon as our partner reaches a decision."
+            : declined
+              ? "We couldn't confirm your documents. You can submit again at any time."
+              : "A two-minute check secures your account. You can keep investing in the meantime."}
+        </p>
+      </div>
+
+      {!pending && (
+        <Link href="/verify">
+          <Button variant={declined ? "outline" : "primary"} size="sm">
+            {declined ? "Try again" : "Verify now"}
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </Link>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardOverview() {
   const { db, currentUser, collectInvestment } = useStore();
@@ -85,6 +144,8 @@ export default function DashboardOverview() {
           </div>
         }
       />
+
+      <KycBanner status={currentUser.kycStatus} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

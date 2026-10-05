@@ -2,11 +2,15 @@ export type Role = "user" | "admin";
 
 export type UserStatus = "active" | "suspended";
 
+/** Local projection of Didit's session status — see mapDiditStatus in lib/didit.ts. */
+export type KycStatus = "unverified" | "pending" | "approved" | "declined";
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  password: string;
+  /** Absent under Supabase, where auth.users owns credentials. Demo mode only. */
+  password?: string;
   role: Role;
   status: UserStatus;
   avatarHue: number;
@@ -18,6 +22,9 @@ export interface User {
   referralCode: string;
   referredBy: string | null;
   twoFactor: boolean;
+  kycStatus: KycStatus;
+  /** Most recent Didit session, so a returning user resumes instead of starting over. */
+  kycSessionId: string | null;
 }
 
 export interface Plan {

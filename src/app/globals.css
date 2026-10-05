@@ -1,44 +1,117 @@
 @import "tailwindcss";
 
+/*
+ * Tokens are declared twice — once per theme below — and `@theme inline` only forwards
+ * the var() reference, so every `bg-surface` / `text-ink` utility in the app resolves
+ * against whichever palette <html data-theme> is currently set to. Adding a colour means
+ * adding it to :root, [data-theme="light"], and here.
+ */
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --color-base: #06090f;
-  --color-surface: #0c1220;
-  --color-surface-2: #121b2c;
-  --color-surface-3: #1a2438;
-  --color-line: #1e2a41;
-  --color-line-soft: #16203300;
+  --color-base: var(--c-base);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-surface-3: var(--c-surface-3);
+  --color-line: var(--c-line);
+  --color-line-soft: var(--c-line-soft);
 
-  --color-ink: #e8eef9;
-  --color-muted: #8496b1;
-  --color-faint: #5a6a85;
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
 
-  --color-brand: #10b981;
-  --color-brand-dark: #059669;
-  --color-brand-ink: #062a1f;
-  --color-violet: #8b5cf6;
-  --color-cyan: #22d3ee;
-  --color-danger: #f43f5e;
-  --color-warn: #f59e0b;
-  --color-info: #38bdf8;
+  --color-brand: var(--c-brand);
+  --color-brand-dark: var(--c-brand-dark);
+  --color-brand-ink: var(--c-brand-ink);
+  --color-violet: var(--c-violet);
+  --color-cyan: var(--c-cyan);
+  --color-danger: var(--c-danger);
+  --color-warn: var(--c-warn);
+  --color-info: var(--c-info);
+
+  --color-overlay: var(--c-overlay);
 
   --radius-xl2: 1.125rem;
 }
 
+:root,
+[data-theme="dark"] {
+  --c-base: #06090f;
+  --c-surface: #0c1220;
+  --c-surface-2: #121b2c;
+  --c-surface-3: #1a2438;
+  --c-line: #1e2a41;
+  --c-line-soft: #16203300;
+
+  --c-ink: #e8eef9;
+  --c-muted: #8496b1;
+  --c-faint: #5a6a85;
+
+  --c-brand: #10b981;
+  --c-brand-dark: #059669;
+  --c-brand-ink: #062a1f;
+  --c-violet: #8b5cf6;
+  --c-cyan: #22d3ee;
+  --c-danger: #f43f5e;
+  --c-warn: #f59e0b;
+  --c-info: #38bdf8;
+
+  --c-overlay: rgb(0 0 0 / 0.7);
+
+  /* Dark surfaces read as elevated through borders, so shadows stay subtle. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 24px 50px -12px rgb(0 0 0 / 0.7);
+  --shadow-brand: 0 8px 24px -10px rgb(16 185 129 / 0.7);
+  --glow-1: rgba(16, 185, 129, 0.16);
+  --glow-2: rgba(139, 92, 246, 0.14);
+  --grid-line: rgba(30, 42, 65, 0.5);
+}
+
+[data-theme="light"] {
+  --c-base: #f5f7fb;
+  --c-surface: #ffffff;
+  --c-surface-2: #f1f5f9;
+  --c-surface-3: #e2e8f0;
+  --c-line: #e3e8ef;
+  --c-line-soft: #e3e8ef00;
+
+  --c-ink: #0f172a;
+  --c-muted: #526179;
+  --c-faint: #8293ab;
+
+  /* Darker than the dark-theme brand so it keeps AA contrast on white. */
+  --c-brand: #059669;
+  --c-brand-dark: #047857;
+  --c-brand-ink: #ffffff;
+  --c-violet: #7c3aed;
+  --c-cyan: #0891b2;
+  --c-danger: #e11d48;
+  --c-warn: #d97706;
+  --c-info: #0284c7;
+
+  --c-overlay: rgb(15 23 42 / 0.45);
+
+  /* Light surfaces need real elevation because borders alone look flat. */
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 12px -2px rgb(15 23 42 / 0.06);
+  --shadow-pop: 0 24px 50px -12px rgb(15 23 42 / 0.18);
+  --shadow-brand: 0 6px 16px -8px rgb(5 150 105 / 0.45);
+  --glow-1: rgba(16, 185, 129, 0.1);
+  --glow-2: rgba(139, 92, 246, 0.09);
+  --grid-line: rgba(148, 163, 184, 0.22);
+}
+
 * {
-  border-color: var(--color-line);
+  border-color: var(--c-line);
 }
 
 html {
-  color-scheme: dark;
-  scrollbar-color: var(--color-surface-3) transparent;
+  scrollbar-color: var(--c-surface-3) transparent;
 }
 
 body {
-  background-color: var(--color-base);
-  color: var(--color-ink);
+  background-color: var(--c-base);
+  color: var(--c-ink);
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -51,13 +124,13 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-3);
+  background: var(--c-surface-3);
   border-radius: 9999px;
-  border: 2px solid var(--color-base);
+  border: 2px solid var(--c-base);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 2px solid var(--c-brand);
   outline-offset: 2px;
 }
 
@@ -69,10 +142,10 @@ input[type="number"]::-webkit-outer-spin-button {
 
 @utility glow-grid {
   background-image:
-    radial-gradient(circle at 15% -10%, rgba(16, 185, 129, 0.16), transparent 45%),
-    radial-gradient(circle at 85% 0%, rgba(139, 92, 246, 0.14), transparent 42%),
-    linear-gradient(to right, rgba(30, 42, 65, 0.5) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 42, 65, 0.5) 1px, transparent 1px);
+    radial-gradient(circle at 15% -10%, var(--glow-1), transparent 45%),
+    radial-gradient(circle at 85% 0%, var(--glow-2), transparent 42%),
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size:
     100% 100%,
     100% 100%,
@@ -81,9 +154,47 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 @utility text-gradient {
-  background-image: linear-gradient(100deg, #e8eef9 10%, #10b981 55%, #22d3ee 95%);
+  background-image: linear-gradient(
+    100deg,
+    var(--c-ink) 10%,
+    var(--c-brand) 55%,
+    var(--c-cyan) 95%
+  );
   background-clip: text;
   color: transparent;
+}
+
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+@utility shadow-pop {
+  box-shadow: var(--shadow-pop);
+}
+
+@utility shadow-brand {
+  box-shadow: var(--shadow-brand);
+}
+
+/*
+ * The split-panel auth promo stays dark in both themes — it is artwork, not chrome —
+ * so it pins the dark tokens locally instead of inheriting the page palette.
+ */
+@utility promo-panel {
+  --c-ink: #e8eef9;
+  --c-muted: #8496b1;
+  --c-faint: #5a6a85;
+  --c-line: #1e2a41;
+  --c-surface: #0c1220;
+  --c-surface-2: #121b2c;
+  --c-surface-3: #1a2438;
+  --c-brand: #10b981;
+  --c-brand-ink: #062a1f;
+  --glow-1: rgba(16, 185, 129, 0.18);
+  --glow-2: rgba(139, 92, 246, 0.16);
+  --grid-line: rgba(30, 42, 65, 0.6);
+  background-color: #06090f;
+  color: #e8eef9;
 }
 
 @keyframes rise {
@@ -110,13 +221,13 @@ input[type="number"]::-webkit-outer-spin-button {
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45);
+    box-shadow: 0 0 0 0 var(--glow-1);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+    box-shadow: 0 0 0 10px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 

@@ -1,14 +1,15 @@
 import type {
   DB,
   Investment,
+  KycStatus,
   Notification,
   Plan,
   Transaction,
   User,
 } from "./types";
 
-export const DEMO_USER = { email: "user@apexvest.io", password: "user123" };
-export const DEMO_ADMIN = { email: "admin@apexvest.io", password: "admin123" };
+export const DEMO_USER = { email: "user@vestage.io", password: "user123" };
+export const DEMO_ADMIN = { email: "admin@vestage.io", password: "admin123" };
 
 function mulberry32(seed: number) {
   let a = seed;
@@ -110,6 +111,8 @@ const PEOPLE: [string, string, string][] = [
 
 const METHODS = ["USDT · TRC20", "BTC", "ETH", "USDC · ERC20"];
 
+const KYC_SPREAD: KycStatus[] = ["approved", "approved", "pending", "unverified", "declined"];
+
 export function seedDb(): DB {
   const rand = mulberry32(20260923);
   const pick = <T,>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
@@ -128,9 +131,11 @@ export function seedDb(): DB {
     phone: "+65 8123 4477",
     joinedAt: daysAgo(420),
     lastActiveAt: daysAgo(0, 1),
-    referralCode: "APEX-ADMIN",
+    referralCode: "VEST-ADMIN",
     referredBy: null,
     twoFactor: true,
+    kycStatus: "approved",
+    kycSessionId: null,
   };
 
   const primary: User = {
@@ -146,9 +151,11 @@ export function seedDb(): DB {
     phone: "+44 7700 900112",
     joinedAt: daysAgo(96),
     lastActiveAt: daysAgo(0),
-    referralCode: "APEX-JW4Q",
+    referralCode: "VEST-JW4Q",
     referredBy: null,
     twoFactor: false,
+    kycStatus: "approved",
+    kycSessionId: null,
   };
 
   const users: User[] = [admin, primary];
@@ -167,9 +174,11 @@ export function seedDb(): DB {
       phone: `+1 ${Math.floor(200 + rand() * 700)} ${Math.floor(1000 + rand() * 8999)}`,
       joinedAt: daysAgo(Math.floor(6 + rand() * 300)),
       lastActiveAt: daysAgo(Math.floor(rand() * 9), Math.floor(rand() * 20)),
-      referralCode: `APEX-${name.split(" ")[0]!.slice(0, 2).toUpperCase()}${Math.floor(10 + rand() * 89)}`,
+      referralCode: `VEST-${name.split(" ")[0]!.slice(0, 2).toUpperCase()}${Math.floor(10 + rand() * 89)}`,
       referredBy: index < 3 ? primary.id : null,
       twoFactor: rand() > 0.6,
+      kycStatus: KYC_SPREAD[index % KYC_SPREAD.length]!,
+      kycSessionId: null,
     });
   });
 
@@ -382,8 +391,8 @@ export function seedDb(): DB {
     ),
     notifications,
     settings: {
-      platformName: "ApexVest",
-      supportEmail: "support@apexvest.io",
+      platformName: "Vestage",
+      supportEmail: "support@vestage.io",
       minDeposit: 100,
       minWithdrawal: 50,
       withdrawalFeePct: 1.5,

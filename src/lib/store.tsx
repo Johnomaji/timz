@@ -1,5 +1,6 @@
 "use client";
 
+import type { AuthChangeEvent } from "@supabase/supabase-js";
 import {
   createContext,
   useCallback,
@@ -19,9 +20,14 @@ import {
   type Rates,
 } from "./currency";
 import { seedDb } from "./seed";
+import { signOut } from "./supabase/auth";
+import { getBrowserClient } from "./supabase/client";
+import { usingSupabase } from "./supabase/config";
+import { loadDb } from "./supabase/load";
 import type {
   DB,
   Investment,
+  KycStatus,
   Notification,
   Plan,
   Settings,
@@ -30,10 +36,10 @@ import type {
 } from "./types";
 import { daysBetween, uid } from "./utils";
 
-const STORAGE_KEY = "apexvest.db.v5";
+const STORAGE_KEY = "vestage.db.v6";
 
 // Separate from STORAGE_KEY so resetDemoData() leaves the currency choice alone.
-const CURRENCY_STORAGE_KEY = "apexvest.currency.v1";
+const CURRENCY_STORAGE_KEY = "vestage.currency.v1";
 
 /** Each subscription draws its own total-return rate from the plan's advertised range. */
 function lockRoiPct(plan: Plan) {
@@ -72,6 +78,11 @@ interface StoreValue {
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "country" | "twoFactor">>) => void;
+  /**
+   * Demo-mode only. Under Supabase the Didit webhook owns this column and the client
+   * is deliberately not allowed to write it.
+   */
+  setKycStatus: (status: KycStatus) => void;
   changePassword: (current: string, next: string) => { ok: boolean; error?: string };
   resolveTransaction: (id: string, decision: "approved" | "rejected", note?: string) => void;
   setUserStatus: (userId: string, status: User["status"]) => void;
@@ -91,21 +102,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<DB | null>(null);
 
   useEffect(() => {
-    let loaded: DB | null = null;
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) loaded = JSON.parse(raw) as DB;
-    } catch {
-      loaded = null;
+    if (!usingSupabase) {
+      let loaded: DB | null = null;
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) loaded = JSON.parse(raw) as DB;
+      } catch {
+        loaded = null;
+      }
+      // Deliberately post-mount: reading localStorage during render would make the
+      // first client render disagree with the server HTML and break hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDb(loaded ?? seedDb());
+      return;
     }
-    // Deliberately post-mount: reading localStorage during render would make the
-    // first client render disagree with the server HTML and break hydration.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDb(loaded ?? seedDb());
+
+    let active = true;
+    const refresh = () => {
+      void loadDb().then((next) => {
+        if (active) setDb(next);
+      });
+    };
+
+    refresh();
+
+    // signIn()/signOut() are called directly by the auth pages, so the store finds
+    // out about a session change here rather than through its own login method.
+    const { data } = getBrowserClient().auth.onAuthStateChange((event: AuthChangeEvent) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") refresh();
+    });
+
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
-    if (!db) return;
+    if (!db || usingSupabase) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
     } catch {
@@ -226,9 +260,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           phone: "",
           joinedAt: new Date().toISOString(),
           lastActiveAt: new Date().toISOString(),
-          referralCode: `APEX-${name.slice(0, 2).toUpperCase()}${Math.floor(10 + Math.random() * 89)}`,
+          referralCode: `VEST-${name.slice(0, 2).toUpperCase()}${Math.floor(10 + Math.random() * 89)}`,
           referredBy: referrer?.id ?? null,
           twoFactor: false,
+          kycStatus: "unverified",
+          kycSessionId: null,
         };
 
         mutate((draft) => {
@@ -255,7 +291,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ok: true, user: newUser };
       },
 
-      logout: () => mutate((draft) => ({ ...draft, sessionUserId: null })),
+      logout: () => {
+        if (usingSupabase) void signOut();
+        mutate((draft) => ({ ...draft, sessionUserId: null }));
+      },
 
       requestDeposit: (amount, method) => {
         const tx: Transaction = {
@@ -451,6 +490,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return draft;
         }),
 
+      setKycStatus: (status) =>
+        mutate((draft) => {
+          const user = draft.users.find((u) => u.id === draft.sessionUserId);
+          if (!user) return draft;
+          user.kycStatus = status;
+          if (status === "approved") {
+            notify(
+              draft,
+              user.id,
+              "Identity verified",
+              "Your identity has been confirmed. Your account is fully active.",
+              "success",
+            );
+          }
+          return draft;
+        }),
+
       changePassword: (current, next) => {
         if (!currentUser) return { ok: false, error: "Not signed in." };
         if (currentUser.password !== current) return { ok: false, error: "Current password is wrong." };
@@ -585,7 +641,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-base">
         <div className="flex items-center gap-3 text-muted">
           <span className="size-2.5 animate-ring rounded-full bg-brand" />
-          Loading ApexVest…
+          Loading Vestage…
         </div>
       </div>
     );

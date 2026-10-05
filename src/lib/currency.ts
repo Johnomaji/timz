@@ -41,7 +41,7 @@ export function isCurrencyCode(value: unknown): value is CurrencyCode {
   return typeof value === "string" && CURRENCY_BY_CODE.has(value as CurrencyCode);
 }
 
-const RATES_STORAGE_KEY = "apexvest.fx.v1";
+const RATES_STORAGE_KEY = "vestage.fx.v1";
 const ENDPOINT = "https://open.er-api.com/v6/latest/USD";
 
 // The provider refreshes once a day, so anything fresher than this is a wasted request.

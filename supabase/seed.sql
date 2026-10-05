@@ -1,4 +1,4 @@
--- ApexVest demo data, ported from src/lib/seed.ts.
+-- Vestage demo data, ported from src/lib/seed.ts.
 --
 -- Users are created through auth.users so Supabase hashes their passwords with bcrypt;
 -- this replaces the prototype's plaintext password fields. Inserting into auth.users
@@ -11,14 +11,21 @@ create extension if not exists pgcrypto with schema extensions;
 
 set search_path = public, extensions;
 
--- Reset ---------------------------------------------------------------------
-delete from auth.users
-where email in ('admin@apexvest.io', 'user@apexvest.io')
-   or email like '%@example.com';
+-- Atomic: a failure partway through used to leave the database half-wiped, because
+-- psql autocommits each statement.
+begin;
 
-delete from public.plans;
+-- Reset ---------------------------------------------------------------------
+-- The legacy @apexvest.io addresses are matched too, otherwise accounts seeded before
+-- the rename survive and their investments block the plan upsert below.
+delete from auth.users
+where email in ('admin@vestage.io', 'user@vestage.io')
+   or email like '%@example.com'
+   or email like '%@apexvest.io';
 
 -- Plans ---------------------------------------------------------------------
+-- Upserted rather than deleted and reinserted: investments.plan_id references these,
+-- so a delete fails whenever any investment outlives the reset above.
 insert into public.plans (
   id, name, tagline, roi_min_pct, roi_max_pct, duration_days,
   min_amount, max_amount, accent, perks, active, sort_order
@@ -65,13 +72,25 @@ insert into public.plans (
       '24/7 desk access'
     ],
     true, 4
-  );
+  )
+on conflict (id) do update set
+  name = excluded.name,
+  tagline = excluded.tagline,
+  roi_min_pct = excluded.roi_min_pct,
+  roi_max_pct = excluded.roi_max_pct,
+  duration_days = excluded.duration_days,
+  min_amount = excluded.min_amount,
+  max_amount = excluded.max_amount,
+  accent = excluded.accent,
+  perks = excluded.perks,
+  active = excluded.active,
+  sort_order = excluded.sort_order;
 
 -- Settings ------------------------------------------------------------------
 -- The migration already inserted the singleton row, so this updates it.
 update public.settings set
-  platform_name = 'ApexVest',
-  support_email = 'support@apexvest.io',
+  platform_name = 'Vestage',
+  support_email = 'support@vestage.io',
   min_deposit = 100,
   min_withdrawal = 50,
   withdrawal_fee_pct = 1.5,
@@ -99,16 +118,24 @@ declare
   new_id uuid := gen_random_uuid();
   joined timestamptz := now() - make_interval(days => p_joined_days_ago);
 begin
+  -- The token columns must be '' and never NULL: GoTrue scans them into non-nullable
+  -- Go strings, so a NULL makes every sign-in fail with "Database error querying schema".
   insert into auth.users (
     instance_id, id, aud, role, email, encrypted_password,
     email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, recovery_token, email_change_token_new,
+    email_change_token_current, email_change,
+    phone_change, phone_change_token, reauthentication_token
   ) values (
     '00000000-0000-0000-0000-000000000000', new_id, 'authenticated', 'authenticated',
     lower(p_email), extensions.crypt(p_password, extensions.gen_salt('bf')),
     joined, joined, joined,
     jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
-    p_meta
+    p_meta,
+    '', '', '',
+    '', '',
+    '', '', ''
   );
 
   -- Required for the email provider to resolve this user at sign-in.
@@ -156,7 +183,7 @@ begin
   perform setseed(0.20260923);
 
   admin_id := pg_temp.seed_user(
-    'admin@apexvest.io', 'admin123',
+    'admin@vestage.io', 'admin123',
     jsonb_build_object('name', 'Nadia Reyes', 'country', 'Singapore', 'phone', '+65 8123 4477'),
     420
   );
@@ -165,14 +192,15 @@ begin
     role = 'admin',
     avatar_hue = 268,
     balance = 0,
-    referral_code = 'APEX-ADMIN',
+    referral_code = 'VEST-ADMIN',
     two_factor = true,
+    kyc_status = 'approved',
     joined_at = now() - interval '420 days',
     last_active_at = now() - interval '1 hour'
   where id = admin_id;
 
   demo_id := pg_temp.seed_user(
-    'user@apexvest.io', 'user123',
+    'user@vestage.io', 'user123',
     jsonb_build_object('name', 'James Whitfield', 'country', 'United Kingdom', 'phone', '+44 7700 900112'),
     96
   );
@@ -180,7 +208,8 @@ begin
   update public.profiles set
     avatar_hue = 158,
     balance = 18420.50,
-    referral_code = 'APEX-JW4Q',
+    referral_code = 'VEST-JW4Q',
+    kyc_status = 'approved',
     joined_at = now() - interval '96 days',
     last_active_at = now()
   where id = demo_id;
@@ -202,6 +231,7 @@ begin
       status = case when idx = 8 then 'suspended'::public.user_status else 'active' end,
       referred_by = case when idx <= 3 then demo_id else null end,
       two_factor = random() > 0.6,
+      kyc_status = (array['approved', 'approved', 'pending', 'unverified', 'declined'])[1 + (idx % 5)]::public.kyc_status,
       last_active_at = now() - make_interval(days => floor(random() * 9)::int, hours => floor(random() * 20)::int)
     where id = person_id;
   end loop;
@@ -341,3 +371,5 @@ begin
      'warning', false, now() - interval '2 hours');
 end;
 $$;
+
+commit;

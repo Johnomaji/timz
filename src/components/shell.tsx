@@ -27,7 +27,7 @@ import { CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { useMoney, useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
-import { Avatar, Badge } from "./ui";
+import { Avatar, Badge, ThemeToggle } from "./ui";
 
 interface NavItem {
   href: string;
@@ -170,6 +170,11 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
         </div>
       )}
 
+      <div className="mt-4 flex items-center justify-between px-1 sm:hidden">
+        <span className="text-xs text-faint">Theme</span>
+        <ThemeToggle />
+      </div>
+
       <button
         onClick={() => {
           logout();
@@ -191,7 +196,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setMobileOpen(false)} />
+          <div className="absolute inset-0 bg-overlay" onClick={() => setMobileOpen(false)} />
           <aside className="animate-pop absolute inset-y-0 left-0 w-72 border-r border-line bg-surface">
             {sidebar}
           </aside>
@@ -277,6 +282,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </div>
 
       <div ref={containerRef} className="flex items-center gap-1.5">
+        <ThemeToggle className="hidden sm:flex" />
         <CurrencySwitcher />
         <div className="relative">
           <button
@@ -291,7 +297,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
           </button>
 
           {openPanel === "bell" && (
-            <div className="animate-pop absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl2 border border-line bg-surface shadow-2xl">
+            <div className="animate-pop absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl2 border border-line bg-surface shadow-pop">
               <div className="flex items-center justify-between border-b border-line px-4 py-3">
                 <p className="text-sm font-semibold text-ink">Notifications</p>
                 {unread > 0 && (
@@ -339,7 +345,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
           </button>
 
           {openPanel === "user" && (
-            <div className="animate-pop absolute right-0 mt-2 w-64 overflow-hidden rounded-xl2 border border-line bg-surface shadow-2xl">
+            <div className="animate-pop absolute right-0 mt-2 w-64 overflow-hidden rounded-xl2 border border-line bg-surface shadow-pop">
               <div className="border-b border-line p-4">
                 <p className="truncate font-medium text-ink">{currentUser.name}</p>
                 <p className="truncate text-xs text-muted">{currentUser.email}</p>

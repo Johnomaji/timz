@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Monitor, Moon, Sun, X } from "lucide-react";
 import {
   useEffect,
   type ButtonHTMLAttributes,
@@ -9,6 +9,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
+import { useTheme, type ThemePreference } from "@/lib/theme";
 import { cn, initials } from "@/lib/utils";
 
 /* ---------------------------------- Button --------------------------------- */
@@ -16,8 +17,7 @@ import { cn, initials } from "@/lib/utils";
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 
 const buttonStyles: Record<ButtonVariant, string> = {
-  primary:
-    "bg-brand text-brand-ink hover:bg-brand-dark font-semibold shadow-[0_8px_24px_-10px_rgba(16,185,129,0.7)]",
+  primary: "bg-brand text-brand-ink hover:bg-brand-dark font-semibold shadow-brand",
   secondary: "bg-surface-3 text-ink hover:bg-line",
   ghost: "text-muted hover:text-ink hover:bg-surface-2",
   danger: "bg-danger/15 text-danger hover:bg-danger/25 border border-danger/30",
@@ -67,7 +67,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl2 border border-line bg-surface/80 backdrop-blur-sm",
+        "shadow-card rounded-xl2 border border-line bg-surface/80 backdrop-blur-sm",
         className,
       )}
       {...props}
@@ -176,7 +176,7 @@ export function Toggle({
       >
         <span
           className={cn(
-            "absolute top-0.5 size-5 rounded-full bg-white transition-transform",
+            "absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform",
             checked ? "translate-x-5.5" : "translate-x-0.5",
           )}
         />
@@ -229,6 +229,7 @@ export function statusTone(status: string): BadgeTone {
     case "pending":
       return "warning";
     case "rejected":
+    case "declined":
     case "suspended":
     case "cancelled":
       return "danger";
@@ -274,7 +275,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-overlay backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
@@ -283,7 +284,7 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "animate-pop relative max-h-[92vh] w-full overflow-y-auto rounded-t-xl2 border border-line bg-surface shadow-2xl sm:rounded-xl2",
+          "animate-pop shadow-pop relative max-h-[92vh] w-full overflow-y-auto rounded-t-xl2 border border-line bg-surface sm:rounded-xl2",
           size === "md" ? "sm:max-w-lg" : "sm:max-w-2xl",
         )}
       >
@@ -403,6 +404,46 @@ export function Avatar({
     >
       {initials(name)}
     </span>
+  );
+}
+
+/* -------------------------------- ThemeToggle ------------------------------ */
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+];
+
+export function ThemeToggle({ className }: { className?: string }) {
+  const { preference, setPreference } = useTheme();
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Colour theme"
+      className={cn("flex items-center gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5", className)}
+    >
+      {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={preference === value}
+          aria-label={label}
+          title={label}
+          onClick={() => setPreference(value)}
+          className={cn(
+            "rounded-md p-1.5 transition-colors",
+            preference === value
+              ? "bg-surface text-ink shadow-card"
+              : "text-faint hover:text-muted",
+          )}
+        >
+          <Icon className="size-4" />
+        </button>
+      ))}
+    </div>
   );
 }
 

@@ -15,9 +15,24 @@ import {
   YAxis,
 } from "recharts";
 import { useMoney } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
-const AXIS = { stroke: "#5a6a85", fontSize: 11 };
+/**
+ * Recharts writes these straight onto SVG attributes, which don't resolve CSS custom
+ * properties — so the palette has to be picked in JS rather than read from a token.
+ * Series hues are shared; only the chrome differs per theme.
+ */
+function useChartPalette() {
+  const { theme } = useTheme();
+  const light = theme === "light";
+  return {
+    axis: { stroke: light ? "#8293ab" : "#5a6a85", fontSize: 11 },
+    cursorStroke: light ? "#cbd5e1" : "#1e2a41",
+    cursorFill: light ? "#eef2f7" : "#131b2c",
+    brand: light ? "#059669" : "#10b981",
+  };
+}
 
 function ChartTooltip({
   active,
@@ -32,7 +47,7 @@ function ChartTooltip({
   const money = useMoney();
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs shadow-xl">
+    <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs shadow-pop">
       {label !== undefined && <p className="mb-1 text-faint">{label}</p>}
       {payload.map((entry, i) => (
         <p key={i} className="font-mono font-medium text-ink">
@@ -44,28 +59,35 @@ function ChartTooltip({
 }
 
 export function EarningsChart({ data }: { data: { label: string; value: number }[] }) {
+  const palette = useChartPalette();
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
           <defs>
             <linearGradient id="earningsFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+              <stop offset="0%" stopColor={palette.brand} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={palette.brand} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            tick={palette.axis}
+            interval="preserveStartEnd"
+          />
           <YAxis
             tickLine={false}
             axisLine={false}
-            tick={AXIS}
+            tick={palette.axis}
             tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
           />
-          <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#1e2a41" }} />
+          <Tooltip content={<ChartTooltip />} cursor={{ stroke: palette.cursorStroke }} />
           <Area
             type="monotone"
             dataKey="value"
-            stroke="#10b981"
+            stroke={palette.brand}
             strokeWidth={2}
             fill="url(#earningsFill)"
           />
@@ -76,18 +98,19 @@ export function EarningsChart({ data }: { data: { label: string; value: number }
 }
 
 export function VolumeChart({ data }: { data: { label: string; value: number }[] }) {
+  const palette = useChartPalette();
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={palette.axis} />
           <YAxis
             tickLine={false}
             axisLine={false}
-            tick={AXIS}
+            tick={palette.axis}
             tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
           />
-          <Tooltip content={<ChartTooltip />} cursor={{ fill: "#131b2c" }} />
+          <Tooltip content={<ChartTooltip />} cursor={{ fill: palette.cursorFill }} />
           <Bar dataKey="value" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={38} />
         </BarChart>
       </ResponsiveContainer>
@@ -167,7 +190,7 @@ export function StatCard({
   } as const;
 
   return (
-    <div className="rounded-xl2 border border-line bg-surface/80 p-5">
+    <div className="rounded-xl2 border border-line bg-surface/80 p-5 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-muted">{label}</p>
         <span className={cn("flex size-8 items-center justify-center rounded-lg", tones[tone])}>

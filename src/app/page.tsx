@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { CurrencySwitcher } from "@/components/shell";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card, ThemeToggle } from "@/components/ui";
 import { useMoney, useStore } from "@/lib/store";
 import { cn, pctRange } from "@/lib/utils";
 
@@ -59,7 +59,7 @@ const FEATURES = [
 const STEPS = [
   {
     title: "Create your account",
-    body: "Sign up in under a minute — no documents, no waiting on approval.",
+    body: "Sign up in under a minute. Identity verification takes two minutes and you can do it whenever you like.",
   },
   {
     title: "Fund your balance",
@@ -137,6 +137,7 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle className="hidden sm:flex" />
             <CurrencySwitcher />
             {currentUser ? (
               <Link href={dashboardHref}>
