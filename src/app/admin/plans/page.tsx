@@ -30,7 +30,7 @@ const blankPlan = (): Plan => ({
   roiMinPct: 6,
   roiMaxPct: 8,
   durationDays: 90,
-  minAmount: 500,
+  minAmount: 100,
   maxAmount: 100_000,
   accent: "brand",
   perks: ["Rate locked in when you subscribe", "Principal plus ROI paid at maturity"],
@@ -45,6 +45,8 @@ export default function AdminPlansPage() {
   const [perkText, setPerkText] = useState("");
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<Plan | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const open = (plan: Plan, fresh: boolean) => {
     setEditing({ ...plan });
@@ -56,8 +58,8 @@ export default function AdminPlansPage() {
   const subscribersFor = (planId: string) =>
     db.investments.filter((i) => i.planId === planId && i.status === "active");
 
-  const submit = () => {
-    if (!editing) return;
+  const submit = async () => {
+    if (!editing || busy) return;
     if (!editing.name.trim()) {
       setError("Give the plan a name.");
       return;
@@ -74,7 +76,8 @@ export default function AdminPlansPage() {
       setError("Maximum must be greater than minimum, and both above zero.");
       return;
     }
-    savePlan({
+    setBusy(true);
+    const result = await savePlan({
       ...editing,
       name: editing.name.trim(),
       tagline: editing.tagline.trim(),
@@ -83,7 +86,25 @@ export default function AdminPlansPage() {
         .map((line) => line.trim())
         .filter(Boolean),
     });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Could not save that plan.");
+      return;
+    }
     setEditing(null);
+  };
+
+  const remove = async (plan: Plan) => {
+    if (busy) return;
+    setBusy(true);
+    const result = await deletePlan(plan.id);
+    setBusy(false);
+    if (!result.ok) {
+      setDeleteError(result.error ?? "Could not delete that plan.");
+      return;
+    }
+    setConfirmDelete(null);
+    setDeleteError("");
   };
 
   return (
@@ -189,7 +210,9 @@ export default function AdminPlansPage() {
             <Button variant="ghost" onClick={() => setEditing(null)}>
               Cancel
             </Button>
-            <Button onClick={submit}>{isNew ? "Create plan" : "Save changes"}</Button>
+            <Button onClick={submit} disabled={busy}>
+              {busy ? "Saving…" : isNew ? "Create plan" : "Save changes"}
+            </Button>
           </>
         }
       >
@@ -305,22 +328,29 @@ export default function AdminPlansPage() {
 
       <Modal
         open={confirmDelete !== null}
-        onClose={() => setConfirmDelete(null)}
+        onClose={() => {
+          setConfirmDelete(null);
+          setDeleteError("");
+        }}
         title={`Delete ${confirmDelete?.name ?? "plan"}?`}
-        description="Existing subscriptions keep running, but the plan disappears from the catalogue."
+        description="A plan can only be deleted while nothing has ever been invested in it."
         footer={
           <>
-            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConfirmDelete(null);
+                setDeleteError("");
+              }}
+            >
               Cancel
             </Button>
             <Button
               variant="danger"
-              onClick={() => {
-                if (confirmDelete) deletePlan(confirmDelete.id);
-                setConfirmDelete(null);
-              }}
+              onClick={() => confirmDelete && void remove(confirmDelete)}
+              disabled={busy}
             >
-              Delete plan
+              {busy ? "Deleting…" : "Delete plan"}
             </Button>
           </>
         }
@@ -329,7 +359,13 @@ export default function AdminPlansPage() {
           <p className="rounded-xl border border-warn/30 bg-warn/8 px-4 py-3 text-sm text-muted">
             {subscribersFor(confirmDelete.id).length} investor
             {subscribersFor(confirmDelete.id).length === 1 ? " is" : "s are"} currently subscribed.
-            Consider hiding the plan instead so their dashboards keep rendering correctly.
+            Consider deactivating the plan instead so their dashboards keep rendering correctly.
+          </p>
+        )}
+
+        {deleteError && (
+          <p className="mt-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+            {deleteError}
           </p>
         )}
       </Modal>

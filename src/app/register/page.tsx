@@ -15,23 +15,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthLayout } from "@/components/auth-layout";
-import { Button, Field, Input, Select } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { signUp } from "@/lib/supabase/auth";
 import { usingSupabase } from "@/lib/supabase/config";
-
-const COUNTRIES = [
-  "United Kingdom",
-  "United States",
-  "Nigeria",
-  "Germany",
-  "India",
-  "Singapore",
-  "Canada",
-  "Australia",
-  "South Africa",
-  "Brazil",
-];
 
 const HIGHLIGHTS = [
   { icon: TrendingUp, label: "Fixed-term plans with a target return" },
@@ -47,7 +34,6 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirm: "",
-    country: COUNTRIES[0]!,
     referralCode: "",
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -76,7 +62,6 @@ export default function RegisterPage() {
       name: form.name,
       email: form.email,
       password: form.password,
-      country: form.country,
       referralCode: form.referralCode || undefined,
     };
     const result = usingSupabase ? await signUp(input) : register(input);
@@ -204,24 +189,13 @@ export default function RegisterPage() {
           />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Country">
-            <Select value={form.country} onChange={(e) => set("country")(e.target.value)}>
-              {COUNTRIES.map((country) => (
-                <option key={country} value={country}>
-                  {country}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Referral code" hint="Optional — try VEST-JW4Q">
-            <Input
-              placeholder="VEST-XXXX"
-              value={form.referralCode}
-              onChange={(e) => set("referralCode")(e.target.value.toUpperCase())}
-            />
-          </Field>
-        </div>
+        <Field label="Referral code" hint="Optional — try VEST-JW4Q">
+          <Input
+            placeholder="VEST-XXXX"
+            value={form.referralCode}
+            onChange={(e) => set("referralCode")(e.target.value.toUpperCase())}
+          />
+        </Field>
 
         {error && (
           <div className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-3 text-sm text-danger">

@@ -12,7 +12,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AllocationDonut, EarningsChart, StatCard } from "@/components/charts";
 import { PageHeading } from "@/components/shell";
 import {
@@ -88,6 +88,24 @@ export default function DashboardOverview() {
   const { db, currentUser, collectInvestment } = useStore();
   const money = useMoney();
   const investments = useUserInvestments(currentUser?.id);
+  const [collecting, setCollecting] = useState(false);
+  const [collectError, setCollectError] = useState("");
+
+  // Sequential rather than parallel: each collection locks the row, credits the balance and
+  // reloads the store, so overlapping calls would fight over the same refresh.
+  const collect = async (ids: string[]) => {
+    if (collecting) return;
+    setCollecting(true);
+    setCollectError("");
+    for (const id of ids) {
+      const result = await collectInvestment(id);
+      if (!result.ok) {
+        setCollectError(result.error ?? "Could not collect that plan.");
+        break;
+      }
+    }
+    setCollecting(false);
+  };
 
   const myTransactions = useMemo(
     () => db.transactions.filter((t) => t.userId === currentUser?.id),
@@ -126,7 +144,9 @@ export default function DashboardOverview() {
     <div className="mx-auto max-w-7xl">
       <PageHeading
         title="Portfolio overview"
-        description={`Last active ${timeAgo(currentUser.lastActiveAt)} · ${currentUser.country}`}
+        description={[`Last active ${timeAgo(currentUser.lastActiveAt)}`, currentUser.country]
+          .filter(Boolean)
+          .join(" · ")}
         action={
           <div className="flex gap-2">
             <Link href="/dashboard/deposit">
@@ -187,14 +207,15 @@ export default function DashboardOverview() {
                   {matured.length} {matured.length === 1 ? "plan has" : "plans have"} matured
                 </p>
                 <p className="mt-0.5 text-sm text-muted">
-                  Collect{" "}
-                  {money(matured.reduce((sum, i) => sum + i.amount + i.projectedTotal, 0))} of
-                  principal plus ROI into your balance.
+                  {collectError ||
+                    `Collect ${money(
+                      matured.reduce((sum, i) => sum + i.amount + i.projectedTotal, 0),
+                    )} of principal plus ROI into your balance.`}
                 </p>
               </div>
             </div>
-            <Button onClick={() => matured.forEach((i) => collectInvestment(i.id))}>
-              Collect all
+            <Button onClick={() => collect(matured.map((i) => i.id))} disabled={collecting}>
+              {collecting ? "Collecting…" : "Collect all"}
             </Button>
           </div>
         </Card>
@@ -286,7 +307,7 @@ export default function DashboardOverview() {
                       Day {Math.floor(inv.elapsedDays)} of {inv.plan.durationDays}
                     </span>
                     {inv.matured && (
-                      <Button size="sm" onClick={() => collectInvestment(inv.id)}>
+                      <Button size="sm" onClick={() => collect([inv.id])} disabled={collecting}>
                         Collect {money(inv.amount + inv.projectedTotal)}
                       </Button>
                     )}

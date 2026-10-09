@@ -32,9 +32,9 @@ insert into public.plans (
 ) values
   (
     'plan_1m', '1 Month', 'Fixed rate, shortest commitment',
-    2, 2, 30, 500, 100000, 'warn',
+    3, 3, 30, 100, 100000, 'warn',
     array[
-      'Flat 2% — no rate variance',
+      'Fixed rate — no variance',
       'Principal plus ROI paid at maturity',
       'Email support'
     ],
@@ -42,9 +42,9 @@ insert into public.plans (
   ),
   (
     'plan_3m', '3 Months', 'Short lock-up to get started',
-    6, 8, 90, 500, 100000, 'cyan',
+    12, 12, 90, 100, 100000, 'cyan',
     array[
-      'Rate locked in when you subscribe',
+      'Fixed rate — no variance',
       'Principal plus ROI paid at maturity',
       'Email support'
     ],
@@ -52,9 +52,9 @@ insert into public.plans (
   ),
   (
     'plan_6m', '6 Months', 'Our most popular balance of yield and term',
-    20, 30, 180, 500, 100000, 'brand',
+    35, 35, 180, 100, 100000, 'brand',
     array[
-      'Rate locked in when you subscribe',
+      'Fixed rate — no variance',
       'Principal plus ROI paid at maturity',
       'Priority withdrawals',
       'Dedicated account manager'
@@ -63,9 +63,9 @@ insert into public.plans (
   ),
   (
     'plan_1y', '1 Year', 'Longest term, highest return',
-    70, 80, 365, 500, 100000, 'violet',
+    100, 100, 365, 100, 100000, 'violet',
     array[
-      'Rate locked in when you subscribe',
+      'Fixed rate — no variance',
       'Principal plus ROI paid at maturity',
       'Zero withdrawal fees',
       'Quarterly strategy calls',

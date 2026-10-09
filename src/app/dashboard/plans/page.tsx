@@ -23,6 +23,7 @@ export default function PlansPage() {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!currentUser) return null;
 
@@ -33,14 +34,16 @@ export default function PlansPage() {
     setDone(false);
   };
 
-  const submit = () => {
-    if (!selected) return;
+  const submit = async () => {
+    if (!selected || busy) return;
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) {
       setError("Enter a valid amount.");
       return;
     }
-    const result = invest(selected.id, value);
+    setBusy(true);
+    const result = await invest(selected.id, value);
+    setBusy(false);
     if (!result.ok) {
       setError(result.error ?? "Could not complete that investment.");
       return;
@@ -189,7 +192,9 @@ export default function PlansPage() {
               <Button variant="ghost" onClick={() => setSelected(null)}>
                 Cancel
               </Button>
-              <Button onClick={submit}>Confirm investment</Button>
+              <Button onClick={submit} disabled={busy}>
+                {busy ? "Confirming…" : "Confirm investment"}
+              </Button>
             </>
           )
         }

@@ -123,7 +123,9 @@ export default function ReferralsPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink">{user.name}</p>
                     <p className="truncate text-xs text-faint">
-                      Joined {shortDate(user.joinedAt)} · {user.country}
+                      {[`Joined ${shortDate(user.joinedAt)}`, user.country]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   <Badge tone={statusTone(user.status)}>{user.status}</Badge>

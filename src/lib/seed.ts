@@ -25,20 +25,20 @@ function mulberry32(seed: number) {
 const daysAgo = (days: number, hourOffset = 0) =>
   new Date(Date.now() - days * 86_400_000 - hourOffset * 3_600_000).toISOString();
 
-const PLAN_LIMITS = { minAmount: 500, maxAmount: 100_000 };
+const PLAN_LIMITS = { minAmount: 100, maxAmount: 100_000 };
 
 export const PLANS: Plan[] = [
   {
     id: "plan_1m",
     name: "1 Month",
     tagline: "Fixed rate, shortest commitment",
-    roiMinPct: 2,
-    roiMaxPct: 2,
+    roiMinPct: 3,
+    roiMaxPct: 3,
     durationDays: 30,
     ...PLAN_LIMITS,
     accent: "warn",
     perks: [
-      "Flat 2% — no rate variance",
+      "Fixed rate — no variance",
       "Principal plus ROI paid at maturity",
       "Email support",
     ],
@@ -48,13 +48,13 @@ export const PLANS: Plan[] = [
     id: "plan_3m",
     name: "3 Months",
     tagline: "Short lock-up to get started",
-    roiMinPct: 6,
-    roiMaxPct: 8,
+    roiMinPct: 12,
+    roiMaxPct: 12,
     durationDays: 90,
     ...PLAN_LIMITS,
     accent: "cyan",
     perks: [
-      "Rate locked in when you subscribe",
+      "Fixed rate — no variance",
       "Principal plus ROI paid at maturity",
       "Email support",
     ],
@@ -64,13 +64,13 @@ export const PLANS: Plan[] = [
     id: "plan_6m",
     name: "6 Months",
     tagline: "Our most popular balance of yield and term",
-    roiMinPct: 20,
-    roiMaxPct: 30,
+    roiMinPct: 35,
+    roiMaxPct: 35,
     durationDays: 180,
     ...PLAN_LIMITS,
     accent: "brand",
     perks: [
-      "Rate locked in when you subscribe",
+      "Fixed rate — no variance",
       "Principal plus ROI paid at maturity",
       "Priority withdrawals",
       "Dedicated account manager",
@@ -81,13 +81,13 @@ export const PLANS: Plan[] = [
     id: "plan_1y",
     name: "1 Year",
     tagline: "Longest term, highest return",
-    roiMinPct: 70,
-    roiMaxPct: 80,
+    roiMinPct: 100,
+    roiMaxPct: 100,
     durationDays: 365,
     ...PLAN_LIMITS,
     accent: "violet",
     perks: [
-      "Rate locked in when you subscribe",
+      "Fixed rate — no variance",
       "Principal plus ROI paid at maturity",
       "Zero withdrawal fees",
       "Quarterly strategy calls",

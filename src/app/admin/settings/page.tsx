@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { PageHeading } from "@/components/shell";
 import { Button, Card, CardHeader, Field, Input, Modal, Toggle } from "@/components/ui";
 import { useMoney, useStore } from "@/lib/store";
+import { usingSupabase } from "@/lib/supabase/config";
 import type { Settings } from "@/lib/types";
 
 export default function AdminSettingsPage() {
@@ -16,6 +17,7 @@ export default function AdminSettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(db.settings);
 
@@ -34,7 +36,8 @@ export default function AdminSettingsPage() {
       wallets: prev.wallets.map((w, i) => (i === index ? { ...w, ...patch } : w)),
     }));
 
-  const submit = () => {
+  const submit = async () => {
+    if (busy) return;
     if (!form.platformName.trim()) {
       setError("The platform needs a name.");
       return;
@@ -60,7 +63,8 @@ export default function AdminSettingsPage() {
       return;
     }
     setError("");
-    saveSettings({
+    setBusy(true);
+    const result = await saveSettings({
       ...form,
       platformName: form.platformName.trim(),
       supportEmail: form.supportEmail.trim(),
@@ -70,6 +74,11 @@ export default function AdminSettingsPage() {
         address: w.address.trim(),
       })),
     });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Could not save those settings.");
+      return;
+    }
     setSaved(true);
   };
 
@@ -81,9 +90,9 @@ export default function AdminSettingsPage() {
         action={
           <div className="flex items-center gap-3">
             {saved && !dirty && <span className="text-sm text-brand">Saved</span>}
-            <Button onClick={submit} disabled={!dirty}>
+            <Button onClick={submit} disabled={!dirty || busy}>
               <Save className="size-4" />
-              Save changes
+              {busy ? "Saving…" : "Save changes"}
             </Button>
           </div>
         }
@@ -275,34 +284,36 @@ export default function AdminSettingsPage() {
             <Button variant="ghost" onClick={() => setForm(db.settings)} disabled={!dirty}>
               Discard
             </Button>
-            <Button onClick={submit} disabled={!dirty}>
+            <Button onClick={submit} disabled={!dirty || busy}>
               <Save className="size-4" />
-              Save changes
+              {busy ? "Saving…" : "Save changes"}
             </Button>
           </div>
         </div>
 
-        <Card className="border-danger/30">
-          <CardHeader
-            title={
-              <span className="flex items-center gap-2 text-danger">
-                <AlertTriangle className="size-4" />
-                Danger zone
-              </span>
-            }
-            subtitle="Wipe every account, plan, transaction and setting back to the seeded demo state."
-          />
-          <div className="flex items-center justify-between gap-4 p-5">
-            <p className="text-sm text-muted">
-              This affects all {db.users.length} accounts and cannot be undone. You will be signed
-              out.
-            </p>
-            <Button variant="danger" onClick={() => setConfirmReset(true)}>
-              <RotateCcw className="size-4" />
-              Reset demo data
-            </Button>
-          </div>
-        </Card>
+        {!usingSupabase && (
+          <Card className="border-danger/30">
+            <CardHeader
+              title={
+                <span className="flex items-center gap-2 text-danger">
+                  <AlertTriangle className="size-4" />
+                  Danger zone
+                </span>
+              }
+              subtitle="Wipe every account, plan, transaction and setting back to the seeded demo state."
+            />
+            <div className="flex items-center justify-between gap-4 p-5">
+              <p className="text-sm text-muted">
+                This affects all {db.users.length} accounts and cannot be undone. You will be signed
+                out.
+              </p>
+              <Button variant="danger" onClick={() => setConfirmReset(true)}>
+                <RotateCcw className="size-4" />
+                Reset demo data
+              </Button>
+            </div>
+          </Card>
+        )}
       </div>
 
       <Modal

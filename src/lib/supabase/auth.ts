@@ -52,7 +52,6 @@ export async function signUp(input: {
   name: string;
   email: string;
   password: string;
-  country: string;
   phone?: string;
   referralCode?: string;
 }): Promise<AuthResult> {
@@ -63,7 +62,6 @@ export async function signUp(input: {
     options: {
       data: {
         name: input.name.trim(),
-        country: input.country,
         phone: input.phone ?? "",
         referral_code: input.referralCode?.trim() ?? "",
       },

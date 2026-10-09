@@ -27,6 +27,7 @@ export default function WithdrawPage() {
   const [address, setAddress] = useState("");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!currentUser) return null;
 
@@ -38,14 +39,17 @@ export default function WithdrawPage() {
   const fee = (value * db.settings.withdrawalFeePct) / 100;
   const total = value + fee;
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     setSubmitted(false);
     if (!address.trim() || address.trim().length < 12) {
       setError("Enter a valid destination wallet address.");
       return;
     }
-    const result = requestWithdrawal(value, `${asset} withdrawal`, address.trim());
+    setBusy(true);
+    const result = await requestWithdrawal(value, `${asset} withdrawal`, address.trim());
+    setBusy(false);
     if (!result.ok) {
       setError(result.error ?? "Could not submit that request.");
       return;
@@ -144,8 +148,8 @@ export default function WithdrawPage() {
               </div>
             )}
 
-            <Button type="submit" className="mt-5 w-full" size="lg">
-              Request withdrawal
+            <Button type="submit" className="mt-5 w-full" size="lg" disabled={busy}>
+              {busy ? "Submitting…" : "Request withdrawal"}
             </Button>
           </form>
         </Card>

@@ -41,6 +41,8 @@ export function ApprovalQueue({
     null,
   );
   const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   const all = db.transactions.filter((t) => t.kind === kind);
   const counts = {
@@ -66,11 +68,18 @@ export function ApprovalQueue({
     .filter((t) => t.status === "pending")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const confirm = () => {
-    if (!action) return;
-    resolveTransaction(action.tx.id, action.decision, note.trim() || undefined);
+  const confirm = async () => {
+    if (!action || busy) return;
+    setBusy(true);
+    const result = await resolveTransaction(action.tx.id, action.decision, note.trim() || undefined);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Could not record that decision.");
+      return;
+    }
     setAction(null);
     setNote("");
+    setError("");
   };
 
   const actionUser = action ? userFor(action.tx.userId) : undefined;
@@ -218,8 +227,16 @@ export function ApprovalQueue({
             <Button variant="ghost" onClick={() => setAction(null)}>
               Cancel
             </Button>
-            <Button variant={action?.decision === "approved" ? "primary" : "danger"} onClick={confirm}>
-              {action?.decision === "approved" ? "Confirm approval" : "Confirm rejection"}
+            <Button
+              variant={action?.decision === "approved" ? "primary" : "danger"}
+              onClick={confirm}
+              disabled={busy}
+            >
+              {busy
+                ? "Working…"
+                : action?.decision === "approved"
+                  ? "Confirm approval"
+                  : "Confirm rejection"}
             </Button>
           </>
         }
@@ -261,6 +278,12 @@ export function ApprovalQueue({
                 onChange={(e) => setNote(e.target.value)}
               />
             </Field>
+
+            {error && (
+              <p className="rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-3 text-sm text-danger">
+                {error}
+              </p>
+            )}
           </div>
         )}
       </Modal>

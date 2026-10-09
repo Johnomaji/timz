@@ -77,18 +77,19 @@ export async function fetchSessionDecision(sessionId: string): Promise<{ status:
 }
 
 export function mapDiditStatus(status: string): KycStatus {
-  switch (status) {
-    case "Approved":
+  switch (status.trim().toLowerCase()) {
+    case "approved":
       return "approved";
-    case "Declined":
-    case "Kyc Expired":
+    case "declined":
       return "declined";
-    case "In Progress":
-    case "In Review":
+    case "in progress":
+    case "in review":
+    case "resubmitted":
       return "pending";
     default:
-      // "Not Started", "Abandoned" and any status Didit adds later leave the user
-      // able to retry rather than stuck in a state the UI cannot explain.
+      // "Not Started", "Abandoned", "Expired", "KYC Expired" and any status Didit adds
+      // later leave the user able to retry rather than stuck in a state the UI cannot
+      // explain. An expired verification is not a rejection, so it is not 'declined'.
       return "unverified";
   }
 }
@@ -98,9 +99,9 @@ export function mapDiditStatus(status: string): KycStatus {
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
 /**
- * Didit signs a canonical re-encoding of the body rather than the raw bytes, so the
- * signature survives proxies that reformat JSON. Reproducing it means sorting keys
- * recursively and collapsing whole-valued floats back to integers.
+ * Didit's V2 signature covers a canonical re-encoding of the body rather than the raw
+ * bytes, so it survives proxies that reformat JSON. Reproducing it means sorting keys
+ * recursively. Non-ASCII characters stay literal — JSON.stringify does not escape them.
  */
 function canonicalize(value: Json): Json {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -112,29 +113,60 @@ function canonicalize(value: Json): Json {
         return acc;
       }, {});
   }
-  if (typeof value === "number" && !Number.isInteger(value) && value % 1 === 0) {
-    return Math.trunc(value);
-  }
   return value;
 }
 
+function hmacHex(secret: string, payload: string): string {
+  return createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+}
+
+function matchesConstantTime(expected: string, received: string): boolean {
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(received, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * Proves the payload came from Didit. `raw` must be the untouched request text and
+ * `parsed` its JSON.parse result — re-stringifying a parsed body loses the byte-exact
+ * form that the X-Signature variant is computed over.
+ *
+ * X-Signature-Simple is deliberately unsupported: it only covers
+ * timestamp:session_id:status:webhook_type, so a valid one would not authenticate the
+ * decision object we read the verified country out of.
+ */
 export function verifyWebhookSignature(
-  body: Json,
-  signature: string | null,
-  timestamp: string | null,
+  raw: string,
+  parsed: unknown,
+  signatureV2: string | null,
+  signatureRaw: string | null,
 ): boolean {
   const secret = process.env.DIDIT_WEBHOOK_SECRET;
-  if (!secret || !signature || !timestamp) return false;
+  if (!secret) return false;
 
-  const sent = Number.parseInt(timestamp, 10);
-  if (!Number.isFinite(sent)) return false;
-  if (Math.abs(Math.floor(Date.now() / 1000) - sent) > MAX_WEBHOOK_AGE_SECONDS) return false;
+  if (signatureV2) {
+    return matchesConstantTime(
+      hmacHex(secret, JSON.stringify(canonicalize(parsed as Json))),
+      signatureV2,
+    );
+  }
 
-  const expected = createHmac("sha256", secret)
-    .update(JSON.stringify(canonicalize(body)), "utf8")
-    .digest("hex");
+  if (signatureRaw) {
+    return matchesConstantTime(hmacHex(secret, raw), signatureRaw);
+  }
 
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(signature, "utf8");
-  return a.length === b.length && timingSafeEqual(a, b);
+  return false;
+}
+
+/**
+ * Rejects replays. The timestamp has to come from the signed body: X-Timestamp sits
+ * outside every signature, so an attacker could refresh that header on a captured
+ * delivery and the HMAC would still check out.
+ *
+ * Only meaningful once verifyWebhookSignature has passed — on its own this proves
+ * nothing, since an unsigned body can claim any timestamp.
+ */
+export function isWebhookFresh(timestamp: unknown): boolean {
+  if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) return false;
+  return Math.abs(Math.floor(Date.now() / 1000) - timestamp) <= MAX_WEBHOOK_AGE_SECONDS;
 }

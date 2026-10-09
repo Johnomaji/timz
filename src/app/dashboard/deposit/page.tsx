@@ -26,6 +26,7 @@ export default function DepositPage() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!currentUser) return null;
 
@@ -44,14 +45,21 @@ export default function DepositPage() {
     }
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     const value = Number(amount);
     if (!Number.isFinite(value) || value < db.settings.minDeposit) {
       setError(`Minimum deposit is ${money(db.settings.minDeposit)}.`);
       return;
     }
-    requestDeposit(value, `${wallet.asset} · ${wallet.network}`);
+    setBusy(true);
+    const result = await requestDeposit(value, `${wallet.asset} · ${wallet.network}`);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Could not submit that deposit notice.");
+      return;
+    }
     setError("");
     setSubmitted(true);
     setAmount("");
@@ -129,7 +137,7 @@ export default function DepositPage() {
             </Field>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {[500, 1_000, 5_000, 25_000].map((preset) => (
+              {[100, 1_000, 5_000, 25_000].map((preset) => (
                 <button
                   key={preset}
                   type="button"
@@ -172,8 +180,8 @@ export default function DepositPage() {
               </div>
             )}
 
-            <Button type="submit" className="mt-5 w-full" size="lg">
-              Submit deposit notice
+            <Button type="submit" className="mt-5 w-full" size="lg" disabled={busy}>
+              {busy ? "Submitting…" : "Submit deposit notice"}
             </Button>
           </form>
         </Card>

@@ -302,7 +302,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
                 <p className="text-sm font-semibold text-ink">Notifications</p>
                 {unread > 0 && (
                   <button
-                    onClick={markAllNotificationsRead}
+                    onClick={() => void markAllNotificationsRead()}
                     className="text-xs text-brand hover:underline"
                   >
                     Mark all read
@@ -316,7 +316,9 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
                 {notifications.map((n) => (
                   <button
                     key={n.id}
-                    onClick={() => markNotificationRead(n.id)}
+                    onClick={() => {
+                      if (!n.read) void markNotificationRead(n.id);
+                    }}
                     className={cn(
                       "flex w-full gap-3 border-b border-line/60 px-4 py-3 text-left transition-colors hover:bg-surface-2/60",
                       !n.read && "bg-surface-2/40",

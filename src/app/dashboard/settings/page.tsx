@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Bell, Check, RotateCcw, ShieldCheck, UserCog } from "lucide-react";
+import { AlertCircle, Check, RotateCcw, ShieldCheck, UserCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PageHeading } from "@/components/shell";
@@ -17,7 +17,8 @@ import {
   Toggle,
 } from "@/components/ui";
 import { useStore } from "@/lib/store";
-import { cn, shortDate, timeAgo } from "@/lib/utils";
+import { usingSupabase } from "@/lib/supabase/config";
+import { cn, shortDate } from "@/lib/utils";
 
 const COUNTRIES = [
   "United Kingdom",
@@ -33,15 +34,7 @@ const COUNTRIES = [
 ];
 
 export default function UserSettingsPage() {
-  const {
-    db,
-    currentUser,
-    updateProfile,
-    changePassword,
-    markAllNotificationsRead,
-    resetDemoData,
-    logout,
-  } = useStore();
+  const { currentUser, updateProfile, changePassword, resetDemoData, logout } = useStore();
   const router = useRouter();
 
   const [profile, setProfile] = useState({
@@ -50,29 +43,32 @@ export default function UserSettingsPage() {
     country: currentUser?.country ?? COUNTRIES[0]!,
   });
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
   const [passwordMessage, setPasswordMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
 
   if (!currentUser) return null;
 
-  const myNotifications = db.notifications.filter((n) => n.userId === currentUser.id);
-  const unread = myNotifications.filter((n) => !n.read).length;
-
-  const saveProfile = (e: React.FormEvent) => {
+  const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile(profile);
+    const result = await updateProfile(profile);
+    if (!result.ok) {
+      setProfileError(result.error ?? "Could not save your profile.");
+      return;
+    }
+    setProfileError("");
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2500);
   };
 
-  const savePassword = (e: React.FormEvent) => {
+  const savePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwords.next !== passwords.confirm) {
       setPasswordMessage({ ok: false, text: "New passwords do not match." });
       return;
     }
-    const result = changePassword(passwords.current, passwords.next);
+    const result = await changePassword(passwords.current, passwords.next);
     if (!result.ok) {
       setPasswordMessage({ ok: false, text: result.error ?? "Could not update password." });
       return;
@@ -83,7 +79,7 @@ export default function UserSettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeading title="Settings" description="Manage your profile, security and notifications." />
+      <PageHeading title="Settings" description="Manage your profile and security." />
 
       <Card className="mb-5 flex flex-wrap items-center justify-between gap-4 p-5">
         <div className="flex items-center gap-3">
@@ -137,6 +133,12 @@ export default function UserSettingsPage() {
                 <span className="flex items-center gap-1.5 text-sm text-brand">
                   <Check className="size-4" />
                   Saved
+                </span>
+              )}
+              {profileError && (
+                <span className="flex items-center gap-1.5 text-sm text-danger">
+                  <AlertCircle className="size-4" />
+                  {profileError}
                 </span>
               )}
             </div>
@@ -205,69 +207,30 @@ export default function UserSettingsPage() {
                 label="Two-factor authentication"
                 description="Require a one-time code from your authenticator app at sign-in"
                 checked={currentUser.twoFactor}
-                onChange={(next) => updateProfile({ twoFactor: next })}
+                onChange={(next) => void updateProfile({ twoFactor: next })}
               />
             </div>
           </div>
         </Card>
 
-        <Card>
-          <CardHeader
-            title="Notifications"
-            subtitle={`${myNotifications.length} total · ${unread} unread`}
-            action={
-              unread > 0 ? (
-                <Button variant="ghost" size="sm" onClick={markAllNotificationsRead}>
-                  Mark all read
-                </Button>
-              ) : undefined
-            }
-          />
-          {myNotifications.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted">Nothing here yet.</p>
-          ) : (
-            <ul className="max-h-96 divide-y divide-line/60 overflow-y-auto">
-              {myNotifications.map((n) => (
-                <li key={n.id} className={cn("flex gap-3 px-5 py-4", !n.read && "bg-surface-2/40")}>
-                  <Bell
-                    className={cn(
-                      "mt-0.5 size-4 shrink-0",
-                      n.tone === "success"
-                        ? "text-brand"
-                        : n.tone === "warning"
-                          ? "text-warn"
-                          : n.tone === "danger"
-                            ? "text-danger"
-                            : "text-info",
-                    )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink">{n.title}</p>
-                    <p className="mt-0.5 text-sm text-muted">{n.body}</p>
-                    <p className="mt-1 text-xs text-faint">{timeAgo(n.createdAt)}</p>
-                  </div>
-                  {!n.read && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand" />}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card className="border-danger/25">
-          <CardHeader
-            title="Demo controls"
-            subtitle="This build stores everything in your browser only"
-          />
-          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
-            <p className="max-w-md text-sm text-muted">
-              Resetting restores the original seeded users, plans and transactions, and signs you out.
-            </p>
-            <Button variant="danger" onClick={() => setResetOpen(true)}>
-              <RotateCcw className="size-4" />
-              Reset demo data
-            </Button>
-          </div>
-        </Card>
+        {!usingSupabase && (
+          <Card className="border-danger/25">
+            <CardHeader
+              title="Demo controls"
+              subtitle="This build stores everything in your browser only"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <p className="max-w-md text-sm text-muted">
+                Resetting restores the original seeded users, plans and transactions, and signs you
+                out.
+              </p>
+              <Button variant="danger" onClick={() => setResetOpen(true)}>
+                <RotateCcw className="size-4" />
+                Reset demo data
+              </Button>
+            </div>
+          </Card>
+        )}
       </div>
 
       <Modal

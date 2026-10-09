@@ -24,6 +24,9 @@ import { signOut } from "./supabase/auth";
 import { getBrowserClient } from "./supabase/client";
 import { usingSupabase } from "./supabase/config";
 import { loadDb } from "./supabase/load";
+// Namespaced because most of these share a name with the store method that wraps them.
+import * as writes from "./supabase/writes";
+import type { WriteResult } from "./supabase/writes";
 import type {
   DB,
   Investment,
@@ -36,7 +39,7 @@ import type {
 } from "./types";
 import { daysBetween, uid } from "./utils";
 
-const STORAGE_KEY = "vestage.db.v6";
+const STORAGE_KEY = "vestage.db.v7";
 
 // Separate from STORAGE_KEY so resetDemoData() leaves the currency choice alone.
 const CURRENCY_STORAGE_KEY = "vestage.currency.v1";
@@ -67,29 +70,36 @@ interface StoreValue {
     name: string;
     email: string;
     password: string;
-    country: string;
     referralCode?: string;
   }) => { ok: boolean; error?: string; user?: User };
   logout: () => void;
-  requestDeposit: (amount: number, method: string) => Transaction;
-  requestWithdrawal: (amount: number, method: string, address: string) => { ok: boolean; error?: string };
-  invest: (planId: string, amount: number) => { ok: boolean; error?: string };
-  collectInvestment: (investmentId: string) => void;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
-  updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "country" | "twoFactor">>) => void;
+  // Every mutation below is async: under Supabase it round-trips to the database and
+  // then reloads, so callers must await the result before trusting `ok`.
+  requestDeposit: (amount: number, method: string) => Promise<WriteResult>;
+  requestWithdrawal: (amount: number, method: string, address: string) => Promise<WriteResult>;
+  invest: (planId: string, amount: number) => Promise<WriteResult>;
+  collectInvestment: (investmentId: string) => Promise<WriteResult>;
+  markNotificationRead: (id: string) => Promise<WriteResult>;
+  markAllNotificationsRead: () => Promise<WriteResult>;
+  updateProfile: (
+    patch: Partial<Pick<User, "name" | "phone" | "country" | "twoFactor">>,
+  ) => Promise<WriteResult>;
   /**
    * Demo-mode only. Under Supabase the Didit webhook owns this column and the client
    * is deliberately not allowed to write it.
    */
   setKycStatus: (status: KycStatus) => void;
-  changePassword: (current: string, next: string) => { ok: boolean; error?: string };
-  resolveTransaction: (id: string, decision: "approved" | "rejected", note?: string) => void;
-  setUserStatus: (userId: string, status: User["status"]) => void;
-  adjustBalance: (userId: string, delta: number, note: string) => void;
-  savePlan: (plan: Plan) => void;
-  deletePlan: (planId: string) => void;
-  saveSettings: (settings: Settings) => void;
+  changePassword: (current: string, next: string) => Promise<WriteResult>;
+  resolveTransaction: (
+    id: string,
+    decision: "approved" | "rejected",
+    note?: string,
+  ) => Promise<WriteResult>;
+  setUserStatus: (userId: string, status: User["status"]) => Promise<WriteResult>;
+  adjustBalance: (userId: string, delta: number, note: string) => Promise<WriteResult>;
+  savePlan: (plan: Plan) => Promise<WriteResult>;
+  deletePlan: (planId: string) => Promise<WriteResult>;
+  saveSettings: (settings: Settings) => Promise<WriteResult>;
   resetDemoData: () => void;
   displayCurrency: CurrencyCode;
   setDisplayCurrency: (code: CurrencyCode) => void;
@@ -100,6 +110,12 @@ const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<DB | null>(null);
+
+  // Hoisted out of the mount effect because every mutation reloads through it: the
+  // database is the source of truth, so a write is only visible once it is re-read.
+  const refresh = useCallback(async () => {
+    setDb(await loadDb());
+  }, []);
 
   useEffect(() => {
     if (!usingSupabase) {
@@ -117,26 +133,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    let active = true;
-    const refresh = () => {
-      void loadDb().then((next) => {
-        if (active) setDb(next);
-      });
-    };
-
-    refresh();
+    void refresh();
 
     // signIn()/signOut() are called directly by the auth pages, so the store finds
     // out about a session change here rather than through its own login method.
     const { data } = getBrowserClient().auth.onAuthStateChange((event: AuthChangeEvent) => {
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") refresh();
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        void refresh();
+      }
     });
 
-    return () => {
-      active = false;
-      data.subscription.unsubscribe();
-    };
-  }, []);
+    return () => data.subscription.unsubscribe();
+  }, [refresh]);
 
   useEffect(() => {
     if (!db || usingSupabase) return;
@@ -190,6 +198,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setDb((prev) => (prev ? fn(structuredClone(prev)) : prev));
   }, []);
 
+  /**
+   * The one place the two data modes diverge. Under Supabase the write goes to the
+   * database and the whole store is re-read on success; in demo mode the in-memory
+   * fallback runs instead. Demo validation is kept because it is the only validation
+   * there — the Supabase path is re-validated server-side by the RPCs.
+   */
+  const persist = useCallback(
+    async (write: () => Promise<WriteResult>, demo: () => WriteResult): Promise<WriteResult> => {
+      if (!usingSupabase) return demo();
+      const result = await write();
+      if (result.ok) await refresh();
+      return result;
+    },
+    [refresh],
+  );
+
   const notify = (
     draft: DB,
     userId: string,
@@ -237,7 +261,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ok: true, user };
       },
 
-      register: ({ name, email, password, country, referralCode }) => {
+      register: ({ name, email, password, referralCode }) => {
         if (!db.settings.signupsOpen)
           return { ok: false, error: "Registrations are temporarily closed." };
         if (db.users.some((u) => u.email.toLowerCase() === email.trim().toLowerCase()))
@@ -256,7 +280,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           status: "active",
           avatarHue: Math.floor(Math.random() * 360),
           balance: 0,
-          country,
+          // Filled in from the identity document once verification completes.
+          country: "",
           phone: "",
           joinedAt: new Date().toISOString(),
           lastActiveAt: new Date().toISOString(),
@@ -296,199 +321,245 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         mutate((draft) => ({ ...draft, sessionUserId: null }));
       },
 
-      requestDeposit: (amount, method) => {
-        const tx: Transaction = {
-          id: uid("tx"),
-          userId: currentUser!.id,
-          kind: "deposit",
-          amount,
-          status: "pending",
-          method,
-          reference: `DEP-${Math.floor(10_000 + Math.random() * 89_999)}`,
-          note: "Awaiting admin confirmation",
-          createdAt: new Date().toISOString(),
-          resolvedAt: null,
-        };
-        mutate((draft) => {
-          draft.transactions.unshift(tx);
-          notify(
-            draft,
-            tx.userId,
-            "Deposit submitted",
-            `We received your ${method} deposit request. It will be credited once confirmed.`,
-            "info",
-          );
-          return draft;
-        });
-        return tx;
-      },
-
-      requestWithdrawal: (amount, method, address) => {
-        if (!currentUser) return { ok: false, error: "Not signed in." };
-        if (amount < db.settings.minWithdrawal)
-          return { ok: false, error: `Minimum withdrawal is $${db.settings.minWithdrawal}.` };
-        const fee = (amount * db.settings.withdrawalFeePct) / 100;
-        if (amount + fee > currentUser.balance)
-          return { ok: false, error: "Amount plus fee exceeds your available balance." };
-
-        mutate((draft) => {
-          const user = draft.users.find((u) => u.id === currentUser.id)!;
-          user.balance -= amount + fee;
-          pushTx(draft, {
-            userId: user.id,
-            kind: "withdrawal",
-            amount,
-            status: "pending",
-            method,
-            reference: `WDR-${Math.floor(10_000 + Math.random() * 89_999)}`,
-            note: `To ${address.slice(0, 10)}… · fee ${db.settings.withdrawalFeePct}%`,
-            createdAt: new Date().toISOString(),
-            resolvedAt: null,
-          });
-          notify(
-            draft,
-            user.id,
-            "Withdrawal requested",
-            `$${amount.toLocaleString()} is on hold pending admin approval.`,
-            "warning",
-          );
-          return draft;
-        });
-        return { ok: true };
-      },
-
-      invest: (planId, amount) => {
-        if (!currentUser) return { ok: false, error: "Not signed in." };
-        const plan = db.plans.find((p) => p.id === planId);
-        if (!plan || !plan.active) return { ok: false, error: "That plan is not available." };
-        if (amount < plan.minAmount)
-          return { ok: false, error: `Minimum for ${plan.name} is $${plan.minAmount.toLocaleString()}.` };
-        if (amount > plan.maxAmount)
-          return { ok: false, error: `Maximum for ${plan.name} is $${plan.maxAmount.toLocaleString()}.` };
-        if (amount > currentUser.balance)
-          return { ok: false, error: "Insufficient balance. Make a deposit first." };
-
-        const roiPct = lockRoiPct(plan);
-
-        mutate((draft) => {
-          const user = draft.users.find((u) => u.id === currentUser.id)!;
-          user.balance -= amount;
-          draft.investments.push({
-            id: uid("inv"),
-            userId: user.id,
-            planId,
-            amount,
-            startedAt: new Date().toISOString(),
-            status: "active",
-            roiPct,
-            payoutCollected: 0,
-          });
-          pushTx(draft, {
-            userId: user.id,
-            kind: "investment",
-            amount,
-            status: "completed",
-            method: "Account balance",
-            reference: `INV-${Math.floor(10_000 + Math.random() * 89_999)}`,
-            note: `${plan.name} plan subscription`,
-            createdAt: new Date().toISOString(),
-            resolvedAt: new Date().toISOString(),
-          });
-          notify(
-            draft,
-            user.id,
-            `${plan.name} plan activated`,
-            `Your $${amount.toLocaleString()} allocation is locked at ${roiPct}% over ${plan.durationDays} days.`,
-            "success",
-          );
-
-          return draft;
-        });
-        return { ok: true };
-      },
-
-      collectInvestment: (investmentId) => {
-        mutate((draft) => {
-          const inv = draft.investments.find((i) => i.id === investmentId);
-          if (!inv || inv.status !== "active") return draft;
-          const plan = draft.plans.find((p) => p.id === inv.planId);
-          if (!plan) return draft;
-          const roi = (inv.amount * inv.roiPct) / 100;
-          const user = draft.users.find((u) => u.id === inv.userId);
-          if (!user) return draft;
-
-          user.balance += inv.amount + roi;
-          inv.status = "completed";
-          inv.payoutCollected = roi;
-          pushTx(draft, {
-            userId: user.id,
-            kind: "earning",
-            amount: roi,
-            status: "completed",
-            method: `${plan.name} maturity`,
-            reference: `ROI-${Math.floor(10_000 + Math.random() * 89_999)}`,
-            note: `Principal $${inv.amount.toLocaleString()} returned with ROI`,
-            createdAt: new Date().toISOString(),
-            resolvedAt: new Date().toISOString(),
-          });
-          notify(
-            draft,
-            user.id,
-            "Plan matured",
-            `$${(inv.amount + roi).toLocaleString(undefined, { maximumFractionDigits: 2 })} was credited to your balance.`,
-            "success",
-          );
-
-          if (user.referredBy) {
-            const commission = (roi * draft.settings.referralCommissionPct) / 100;
-            const referrer = draft.users.find((u) => u.id === user.referredBy);
-            if (referrer) {
-              referrer.balance += commission;
+      requestDeposit: (amount, method) =>
+        persist(
+          () => writes.requestDeposit(amount, method),
+          () => {
+            if (!currentUser) return { ok: false, error: "Not signed in." };
+            mutate((draft) => {
               pushTx(draft, {
-                userId: referrer.id,
-                kind: "referral",
-                amount: commission,
+                userId: currentUser.id,
+                kind: "deposit",
+                amount,
+                status: "pending",
+                method,
+                reference: `DEP-${Math.floor(10_000 + Math.random() * 89_999)}`,
+                note: "Awaiting admin confirmation",
+                createdAt: new Date().toISOString(),
+                resolvedAt: null,
+              });
+              notify(
+                draft,
+                currentUser.id,
+                "Deposit submitted",
+                `We received your ${method} deposit request. It will be credited once confirmed.`,
+                "info",
+              );
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
+
+      requestWithdrawal: (amount, method, address) =>
+        persist(
+          () => writes.requestWithdrawal(amount, method, address),
+          () => {
+            if (!currentUser) return { ok: false, error: "Not signed in." };
+            if (amount < db.settings.minWithdrawal)
+              return { ok: false, error: `Minimum withdrawal is $${db.settings.minWithdrawal}.` };
+            const fee = (amount * db.settings.withdrawalFeePct) / 100;
+            if (amount + fee > currentUser.balance)
+              return { ok: false, error: "Amount plus fee exceeds your available balance." };
+
+            mutate((draft) => {
+              const user = draft.users.find((u) => u.id === currentUser.id)!;
+              user.balance -= amount + fee;
+              pushTx(draft, {
+                userId: user.id,
+                kind: "withdrawal",
+                amount,
+                status: "pending",
+                method,
+                reference: `WDR-${Math.floor(10_000 + Math.random() * 89_999)}`,
+                note: `To ${address.slice(0, 10)}… · fee ${db.settings.withdrawalFeePct}%`,
+                createdAt: new Date().toISOString(),
+                resolvedAt: null,
+              });
+              notify(
+                draft,
+                user.id,
+                "Withdrawal requested",
+                `$${amount.toLocaleString()} is on hold pending admin approval.`,
+                "warning",
+              );
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
+
+      invest: (planId, amount) =>
+        persist(
+          () => writes.invest(planId, amount),
+          () => {
+            if (!currentUser) return { ok: false, error: "Not signed in." };
+            const plan = db.plans.find((p) => p.id === planId);
+            if (!plan || !plan.active) return { ok: false, error: "That plan is not available." };
+            if (amount < plan.minAmount)
+              return {
+                ok: false,
+                error: `Minimum for ${plan.name} is $${plan.minAmount.toLocaleString()}.`,
+              };
+            if (amount > plan.maxAmount)
+              return {
+                ok: false,
+                error: `Maximum for ${plan.name} is $${plan.maxAmount.toLocaleString()}.`,
+              };
+            if (amount > currentUser.balance)
+              return { ok: false, error: "Insufficient balance. Make a deposit first." };
+
+            const roiPct = lockRoiPct(plan);
+
+            mutate((draft) => {
+              const user = draft.users.find((u) => u.id === currentUser.id)!;
+              user.balance -= amount;
+              draft.investments.push({
+                id: uid("inv"),
+                userId: user.id,
+                planId,
+                amount,
+                startedAt: new Date().toISOString(),
+                status: "active",
+                roiPct,
+                payoutCollected: 0,
+              });
+              pushTx(draft, {
+                userId: user.id,
+                kind: "investment",
+                amount,
                 status: "completed",
-                method: "Referral commission",
-                reference: `REF-${Math.floor(10_000 + Math.random() * 89_999)}`,
-                note: `${draft.settings.referralCommissionPct}% of ${user.name}'s ${plan.name} ROI`,
+                method: "Account balance",
+                reference: `INV-${Math.floor(10_000 + Math.random() * 89_999)}`,
+                note: `${plan.name} plan subscription`,
                 createdAt: new Date().toISOString(),
                 resolvedAt: new Date().toISOString(),
               });
               notify(
                 draft,
-                referrer.id,
-                "Referral reward earned",
-                `You earned $${commission.toFixed(2)} — ${draft.settings.referralCommissionPct}% of ${user.name}'s ROI.`,
+                user.id,
+                `${plan.name} plan activated`,
+                `Your $${amount.toLocaleString()} allocation is locked at ${roiPct}% over ${plan.durationDays} days.`,
                 "success",
               );
-            }
-          }
-          return draft;
-        });
-      },
+
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
+
+      collectInvestment: (investmentId) =>
+        persist(
+          () => writes.collectInvestment(investmentId),
+          () => {
+            mutate((draft) => {
+              const inv = draft.investments.find((i) => i.id === investmentId);
+              if (!inv || inv.status !== "active") return draft;
+              const plan = draft.plans.find((p) => p.id === inv.planId);
+              if (!plan) return draft;
+              const roi = (inv.amount * inv.roiPct) / 100;
+              const user = draft.users.find((u) => u.id === inv.userId);
+              if (!user) return draft;
+
+              user.balance += inv.amount + roi;
+              inv.status = "completed";
+              inv.payoutCollected = roi;
+              pushTx(draft, {
+                userId: user.id,
+                kind: "earning",
+                amount: roi,
+                status: "completed",
+                method: `${plan.name} maturity`,
+                reference: `ROI-${Math.floor(10_000 + Math.random() * 89_999)}`,
+                note: `Principal $${inv.amount.toLocaleString()} returned with ROI`,
+                createdAt: new Date().toISOString(),
+                resolvedAt: new Date().toISOString(),
+              });
+              notify(
+                draft,
+                user.id,
+                "Plan matured",
+                `$${(inv.amount + roi).toLocaleString(undefined, { maximumFractionDigits: 2 })} was credited to your balance.`,
+                "success",
+              );
+
+              if (user.referredBy) {
+                const commission = (roi * draft.settings.referralCommissionPct) / 100;
+                const referrer = draft.users.find((u) => u.id === user.referredBy);
+                if (referrer) {
+                  referrer.balance += commission;
+                  pushTx(draft, {
+                    userId: referrer.id,
+                    kind: "referral",
+                    amount: commission,
+                    status: "completed",
+                    method: "Referral commission",
+                    reference: `REF-${Math.floor(10_000 + Math.random() * 89_999)}`,
+                    note: `${draft.settings.referralCommissionPct}% of ${user.name}'s ${plan.name} ROI`,
+                    createdAt: new Date().toISOString(),
+                    resolvedAt: new Date().toISOString(),
+                  });
+                  notify(
+                    draft,
+                    referrer.id,
+                    "Referral reward earned",
+                    `You earned $${commission.toFixed(2)} — ${draft.settings.referralCommissionPct}% of ${user.name}'s ROI.`,
+                    "success",
+                  );
+                }
+              }
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       markNotificationRead: (id) =>
-        mutate((draft) => {
-          const n = draft.notifications.find((x) => x.id === id);
-          if (n) n.read = true;
-          return draft;
-        }),
+        persist(
+          () => writes.markNotificationRead(id),
+          () => {
+            mutate((draft) => {
+              const n = draft.notifications.find((x) => x.id === id);
+              if (n) n.read = true;
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       markAllNotificationsRead: () =>
-        mutate((draft) => {
-          draft.notifications.forEach((n) => {
-            if (n.userId === draft.sessionUserId) n.read = true;
-          });
-          return draft;
-        }),
+        persist(
+          () =>
+            currentUser
+              ? writes.markAllNotificationsRead(currentUser.id)
+              : Promise.resolve({ ok: true }),
+          () => {
+            mutate((draft) => {
+              draft.notifications.forEach((n) => {
+                if (n.userId === draft.sessionUserId) n.read = true;
+              });
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       updateProfile: (patch) =>
-        mutate((draft) => {
-          const user = draft.users.find((u) => u.id === draft.sessionUserId);
-          if (user) Object.assign(user, patch);
-          return draft;
-        }),
+        persist(
+          () =>
+            currentUser
+              ? writes.updateProfile(currentUser.id, patch)
+              : Promise.resolve({ ok: false, error: "Not signed in." }),
+          () => {
+            mutate((draft) => {
+              const user = draft.users.find((u) => u.id === draft.sessionUserId);
+              if (user) Object.assign(user, patch);
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       setKycStatus: (status) =>
         mutate((draft) => {
@@ -507,134 +578,181 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return draft;
         }),
 
-      changePassword: (current, next) => {
-        if (!currentUser) return { ok: false, error: "Not signed in." };
-        if (currentUser.password !== current) return { ok: false, error: "Current password is wrong." };
-        if (next.length < 6) return { ok: false, error: "Use at least 6 characters." };
-        mutate((draft) => {
-          const user = draft.users.find((u) => u.id === draft.sessionUserId);
-          if (user) user.password = next;
-          return draft;
-        });
-        return { ok: true };
-      },
+      changePassword: (current, next) =>
+        persist(
+          () =>
+            currentUser
+              ? writes.changePassword(currentUser.email, current, next)
+              : Promise.resolve({ ok: false, error: "Not signed in." }),
+          () => {
+            if (!currentUser) return { ok: false, error: "Not signed in." };
+            if (currentUser.password !== current)
+              return { ok: false, error: "Current password is wrong." };
+            if (next.length < 6) return { ok: false, error: "Use at least 6 characters." };
+            mutate((draft) => {
+              const user = draft.users.find((u) => u.id === draft.sessionUserId);
+              if (user) user.password = next;
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       resolveTransaction: (id, decision, note) =>
-        mutate((draft) => {
-          const tx = draft.transactions.find((t) => t.id === id);
-          if (!tx || tx.status !== "pending") return draft;
-          const user = draft.users.find((u) => u.id === tx.userId);
-          if (!user) return draft;
+        persist(
+          () => writes.resolveTransaction(id, decision, note),
+          () => {
+            mutate((draft) => {
+              const tx = draft.transactions.find((t) => t.id === id);
+              if (!tx || tx.status !== "pending") return draft;
+              const user = draft.users.find((u) => u.id === tx.userId);
+              if (!user) return draft;
 
-          tx.status = decision;
-          tx.resolvedAt = new Date().toISOString();
-          if (note) tx.note = note;
+              tx.status = decision;
+              tx.resolvedAt = new Date().toISOString();
+              if (note) tx.note = note;
 
-          if (tx.kind === "deposit" && decision === "approved") {
-            user.balance += tx.amount;
-            notify(
-              draft,
-              user.id,
-              "Deposit approved",
-              `$${tx.amount.toLocaleString()} was credited to your available balance.`,
-              "success",
-            );
-          } else if (tx.kind === "deposit") {
-            notify(
-              draft,
-              user.id,
-              "Deposit rejected",
-              note || "We could not confirm this payment. Contact support.",
-              "danger",
-            );
-          } else if (tx.kind === "withdrawal" && decision === "approved") {
-            notify(
-              draft,
-              user.id,
-              "Withdrawal sent",
-              `$${tx.amount.toLocaleString()} was released to your wallet.`,
-              "success",
-            );
-          } else if (tx.kind === "withdrawal") {
-            const fee = (tx.amount * draft.settings.withdrawalFeePct) / 100;
-            user.balance += tx.amount + fee;
-            notify(
-              draft,
-              user.id,
-              "Withdrawal rejected",
-              note || "Your funds were returned to your available balance.",
-              "danger",
-            );
-          }
-          return draft;
-        }),
+              if (tx.kind === "deposit" && decision === "approved") {
+                user.balance += tx.amount;
+                notify(
+                  draft,
+                  user.id,
+                  "Deposit approved",
+                  `$${tx.amount.toLocaleString()} was credited to your available balance.`,
+                  "success",
+                );
+              } else if (tx.kind === "deposit") {
+                notify(
+                  draft,
+                  user.id,
+                  "Deposit rejected",
+                  note || "We could not confirm this payment. Contact support.",
+                  "danger",
+                );
+              } else if (tx.kind === "withdrawal" && decision === "approved") {
+                notify(
+                  draft,
+                  user.id,
+                  "Withdrawal sent",
+                  `$${tx.amount.toLocaleString()} was released to your wallet.`,
+                  "success",
+                );
+              } else if (tx.kind === "withdrawal") {
+                const fee = (tx.amount * draft.settings.withdrawalFeePct) / 100;
+                user.balance += tx.amount + fee;
+                notify(
+                  draft,
+                  user.id,
+                  "Withdrawal rejected",
+                  note || "Your funds were returned to your available balance.",
+                  "danger",
+                );
+              }
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       setUserStatus: (userId, status) =>
-        mutate((draft) => {
-          const user = draft.users.find((u) => u.id === userId);
-          if (!user) return draft;
-          user.status = status;
-          notify(
-            draft,
-            user.id,
-            status === "suspended" ? "Account suspended" : "Account reinstated",
-            status === "suspended"
-              ? "Your account was suspended by an administrator."
-              : "Your account is active again.",
-            status === "suspended" ? "danger" : "success",
-          );
-          return draft;
-        }),
+        persist(
+          () => writes.setUserStatus(userId, status),
+          () => {
+            mutate((draft) => {
+              const user = draft.users.find((u) => u.id === userId);
+              if (!user) return draft;
+              user.status = status;
+              notify(
+                draft,
+                user.id,
+                status === "suspended" ? "Account suspended" : "Account reinstated",
+                status === "suspended"
+                  ? "Your account was suspended by an administrator."
+                  : "Your account is active again.",
+                status === "suspended" ? "danger" : "success",
+              );
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       adjustBalance: (userId, delta, note) =>
-        mutate((draft) => {
-          const user = draft.users.find((u) => u.id === userId);
-          if (!user) return draft;
-          user.balance = Math.max(0, user.balance + delta);
-          pushTx(draft, {
-            userId,
-            kind: "adjustment",
-            amount: Math.abs(delta),
-            status: "completed",
-            method: delta >= 0 ? "Admin credit" : "Admin debit",
-            reference: `ADJ-${Math.floor(10_000 + Math.random() * 89_999)}`,
-            note,
-            createdAt: new Date().toISOString(),
-            resolvedAt: new Date().toISOString(),
-          });
-          notify(
-            draft,
-            userId,
-            delta >= 0 ? "Balance credited" : "Balance debited",
-            `${note} · $${Math.abs(delta).toLocaleString()}`,
-            delta >= 0 ? "success" : "warning",
-          );
-          return draft;
-        }),
+        persist(
+          () => writes.adjustBalance(userId, delta, note),
+          () => {
+            mutate((draft) => {
+              const user = draft.users.find((u) => u.id === userId);
+              if (!user) return draft;
+              user.balance = Math.max(0, user.balance + delta);
+              pushTx(draft, {
+                userId,
+                kind: "adjustment",
+                amount: Math.abs(delta),
+                status: "completed",
+                method: delta >= 0 ? "Admin credit" : "Admin debit",
+                reference: `ADJ-${Math.floor(10_000 + Math.random() * 89_999)}`,
+                note,
+                createdAt: new Date().toISOString(),
+                resolvedAt: new Date().toISOString(),
+              });
+              notify(
+                draft,
+                userId,
+                delta >= 0 ? "Balance credited" : "Balance debited",
+                `${note} · $${Math.abs(delta).toLocaleString()}`,
+                delta >= 0 ? "success" : "warning",
+              );
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       savePlan: (plan) =>
-        mutate((draft) => {
-          const index = draft.plans.findIndex((p) => p.id === plan.id);
-          if (index >= 0) draft.plans[index] = plan;
-          else draft.plans.push(plan);
-          return draft;
-        }),
+        persist(
+          () => writes.savePlan(plan),
+          () => {
+            mutate((draft) => {
+              const index = draft.plans.findIndex((p) => p.id === plan.id);
+              if (index >= 0) draft.plans[index] = plan;
+              else draft.plans.push(plan);
+              return draft;
+            });
+            return { ok: true };
+          },
+        ),
 
       deletePlan: (planId) =>
-        mutate((draft) => ({ ...draft, plans: draft.plans.filter((p) => p.id !== planId) })),
+        persist(
+          () => writes.deletePlan(planId),
+          () => {
+            mutate((draft) => ({ ...draft, plans: draft.plans.filter((p) => p.id !== planId) }));
+            return { ok: true };
+          },
+        ),
 
-      saveSettings: (settings) => mutate((draft) => ({ ...draft, settings })),
+      saveSettings: (settings) =>
+        persist(
+          () => writes.saveSettings(settings),
+          () => {
+            mutate((draft) => ({ ...draft, settings }));
+            return { ok: true };
+          },
+        ),
 
+      // Demo-mode only — the button that calls this is hidden under Supabase, where
+      // there is no local database to reseed.
       resetDemoData: () => {
-        const fresh = seedDb();
-        setDb(fresh);
+        if (usingSupabase) return;
+        setDb(seedDb());
       },
 
       displayCurrency,
       setDisplayCurrency,
       rates,
     };
-  }, [db, currentUser, mutate, displayCurrency, setDisplayCurrency, rates]);
+  }, [db, currentUser, mutate, persist, displayCurrency, setDisplayCurrency, rates]);
 
   if (!value) {
     return (

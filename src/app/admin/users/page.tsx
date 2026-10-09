@@ -34,6 +34,7 @@ export default function AdminUsersPage() {
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustNote, setAdjustNote] = useState("Manual adjustment by admin");
   const [adjustError, setAdjustError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const investors = useMemo(() => db.users.filter((u) => u.role === "user"), [db.users]);
 
@@ -58,8 +59,8 @@ export default function AdminUsersPage() {
       .filter((i) => i.userId === userId && i.status === "active")
       .reduce((sum, i) => sum + i.amount, 0);
 
-  const submitAdjust = () => {
-    if (!adjust) return;
+  const submitAdjust = async () => {
+    if (!adjust || busy) return;
     const value = Number(adjustAmount);
     if (!Number.isFinite(value) || value <= 0) {
       setAdjustError("Enter an amount greater than zero.");
@@ -69,10 +70,23 @@ export default function AdminUsersPage() {
       setAdjustError("Add a note so this adjustment is auditable.");
       return;
     }
-    adjustBalance(adjust.user.id, value * adjust.direction, adjustNote.trim());
+    setBusy(true);
+    const result = await adjustBalance(adjust.user.id, value * adjust.direction, adjustNote.trim());
+    setBusy(false);
+    if (!result.ok) {
+      setAdjustError(result.error ?? "Could not apply that adjustment.");
+      return;
+    }
     setAdjust(null);
     setAdjustAmount("");
     setAdjustError("");
+  };
+
+  const toggleStatus = async (user: User) => {
+    if (busy) return;
+    setBusy(true);
+    await setUserStatus(user.id, user.status === "active" ? "suspended" : "active");
+    setBusy(false);
   };
 
   const detailInvestments = detail
@@ -181,10 +195,9 @@ export default function AdminUsersPage() {
                       <button
                         title={user.status === "active" ? "Suspend account" : "Reinstate account"}
                         aria-label={`${user.status === "active" ? "Suspend" : "Reinstate"} ${user.name}`}
-                        onClick={() =>
-                          setUserStatus(user.id, user.status === "active" ? "suspended" : "active")
-                        }
-                        className="rounded-lg border border-line p-1.5 text-muted transition-colors hover:border-danger/50 hover:text-danger"
+                        onClick={() => void toggleStatus(user)}
+                        disabled={busy}
+                        className="rounded-lg border border-line p-1.5 text-muted transition-colors hover:border-danger/50 hover:text-danger disabled:opacity-50"
                       >
                         {user.status === "active" ? (
                           <Ban className="size-3.5" />
@@ -211,8 +224,12 @@ export default function AdminUsersPage() {
             <Button variant="ghost" onClick={() => setAdjust(null)}>
               Cancel
             </Button>
-            <Button variant={adjust?.direction === 1 ? "primary" : "danger"} onClick={submitAdjust}>
-              {adjust?.direction === 1 ? "Credit account" : "Debit account"}
+            <Button
+              variant={adjust?.direction === 1 ? "primary" : "danger"}
+              onClick={submitAdjust}
+              disabled={busy}
+            >
+              {busy ? "Applying…" : adjust?.direction === 1 ? "Credit account" : "Debit account"}
             </Button>
           </>
         }
@@ -263,9 +280,8 @@ export default function AdminUsersPage() {
             <>
               <Button
                 variant={liveDetail.status === "active" ? "danger" : "secondary"}
-                onClick={() =>
-                  setUserStatus(liveDetail.id, liveDetail.status === "active" ? "suspended" : "active")
-                }
+                onClick={() => void toggleStatus(liveDetail)}
+                disabled={busy}
               >
                 {liveDetail.status === "active" ? "Suspend account" : "Reinstate account"}
               </Button>
@@ -282,7 +298,7 @@ export default function AdminUsersPage() {
               {[
                 { label: "Balance", value: money(liveDetail.balance) },
                 { label: "Deployed", value: money(deployedFor(liveDetail.id), { compact: true }) },
-                { label: "Country", value: liveDetail.country },
+                { label: "Country", value: liveDetail.country || "—" },
                 { label: "Joined", value: shortDate(liveDetail.joinedAt) },
               ].map((item) => (
                 <div key={item.label} className="rounded-xl border border-line bg-surface-2/50 p-3.5">
