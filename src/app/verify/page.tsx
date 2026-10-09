@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { AuthLayout, Stepper } from "@/components/auth-layout";
 import { Button } from "@/components/ui";
 import { useStore } from "@/lib/store";
+import { usingSupabase } from "@/lib/supabase/config";
 
 const HIGHLIGHTS = [
   { icon: TrendingUp, label: "Fixed-term plans with a target return" },
@@ -66,9 +67,11 @@ export default function VerifyPage() {
         return;
       }
 
-      // 503 means Didit keys are absent (demo deployments), 401 means there is no
-      // Supabase session because the app is running off the localStorage store.
-      if (response.status === 503 || response.status === 401) {
+      // Demo deployments have no Didit keys (503) and no Supabase session (401), so the
+      // flow is simulated rather than left broken. Under Supabase the same codes are
+      // real failures — faking an approval there would tell someone they passed KYC
+      // while the database still says unverified.
+      if (!usingSupabase && (response.status === 503 || response.status === 401)) {
         setKycStatus("approved");
         setBusy(false);
         return;
