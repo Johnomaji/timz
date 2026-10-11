@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, RotateCcw, ShieldCheck, UserCog } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PageHeading } from "@/components/shell";
@@ -15,6 +16,7 @@ import {
   Select,
   statusTone,
   Toggle,
+  VerifiedTick,
 } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { usingSupabase } from "@/lib/supabase/config";
@@ -85,14 +87,30 @@ export default function UserSettingsPage() {
         <div className="flex items-center gap-3">
           <UserCog className="size-5 text-muted" />
           <div>
-            <p className="font-medium text-ink">{currentUser.email}</p>
+            <p className="flex items-center gap-1.5 font-medium text-ink">
+              {currentUser.email}
+              {currentUser.kycStatus === "approved" && <VerifiedTick size={15} />}
+            </p>
             <p className="text-xs text-faint">
               Member since {shortDate(currentUser.joinedAt)} · referral code {currentUser.referralCode}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge tone={statusTone(currentUser.status)}>{currentUser.status}</Badge>
+          {currentUser.kycStatus === "approved" ? (
+            <Badge tone="success">
+              <ShieldCheck className="size-3" />
+              Verified
+            </Badge>
+          ) : (
+            <Link href="/verify">
+              <Badge tone={statusTone(currentUser.kycStatus)}>
+                <ShieldCheck className="size-3" />
+                {currentUser.kycStatus === "pending" ? "Verification in review" : "Verify identity"}
+              </Badge>
+            </Link>
+          )}
         </div>
       </Card>
 

@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Coins,
   LayoutDashboard,
+  Lock,
   LogOut,
   Menu,
   Receipt,
@@ -27,13 +28,14 @@ import { CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { useMoney, useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
-import { Avatar, Badge, ThemeToggle } from "./ui";
+import { isOpenWhileUnverified } from "./kyc-gate";
+import { Avatar, Badge, ThemeToggle, VerifiedTick } from "./ui";
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  badgeKey?: "deposits" | "withdrawals";
+  badgeKey?: "deposits" | "withdrawals" | "notifications";
 }
 
 const USER_NAV: NavItem[] = [
@@ -43,6 +45,7 @@ const USER_NAV: NavItem[] = [
   { href: "/dashboard/withdraw", label: "Withdraw", icon: ArrowUpFromLine },
   { href: "/dashboard/transactions", label: "Transactions", icon: Receipt },
   { href: "/dashboard/referrals", label: "Referrals", icon: Share2 },
+  { href: "/dashboard/notifications", label: "Notifications", icon: Bell, badgeKey: "notifications" },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
@@ -82,13 +85,14 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
     }
   }, [currentUser, role, router]);
 
-  const pendingCounts = useMemo(
+  const badgeCounts = useMemo(
     () => ({
       deposits: db.transactions.filter((t) => t.kind === "deposit" && t.status === "pending").length,
       withdrawals: db.transactions.filter((t) => t.kind === "withdrawal" && t.status === "pending")
         .length,
+      notifications: db.notifications.filter((n) => n.userId === currentUser?.id && !n.read).length,
     }),
-    [db.transactions],
+    [db.transactions, db.notifications, currentUser?.id],
   );
 
   if (!currentUser || currentUser.role !== role) {
@@ -100,6 +104,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   }
 
   const nav = role === "admin" ? ADMIN_NAV : USER_NAV;
+  const gated = role === "user" && currentUser.kycStatus !== "approved";
 
   const sidebar = (
     <div className="flex h-full flex-col gap-1 p-4">
@@ -129,7 +134,8 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
             item.href === "/dashboard" || item.href === "/admin"
               ? pathname === item.href
               : pathname.startsWith(item.href);
-          const count = item.badgeKey ? pendingCounts[item.badgeKey] : 0;
+          const count = item.badgeKey ? badgeCounts[item.badgeKey] : 0;
+          const locked = gated && !isOpenWhileUnverified(item.href);
           return (
             <Link
               key={item.href}
@@ -140,16 +146,21 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
                 active
                   ? "bg-surface-2 font-medium text-ink"
                   : "text-muted hover:bg-surface-2/60 hover:text-ink",
+                locked && !active && "text-faint",
               )}
             >
               <item.icon
                 className={cn("size-4.5 shrink-0", active ? "text-brand" : "text-faint group-hover:text-muted")}
               />
               <span className="flex-1 truncate">{item.label}</span>
-              {count > 0 && (
-                <span className="rounded-full bg-warn/15 px-1.5 py-0.5 text-xs font-medium text-warn">
-                  {count}
-                </span>
+              {locked ? (
+                <Lock className="size-3.5 shrink-0 text-faint" aria-label="Requires verification" />
+              ) : (
+                count > 0 && (
+                  <span className="rounded-full bg-warn/15 px-1.5 py-0.5 text-xs font-medium text-warn">
+                    {count}
+                  </span>
+                )
               )}
             </Link>
           );
@@ -160,13 +171,23 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
         <div className="mt-4 rounded-xl border border-line bg-surface-2/50 p-4">
           <p className="text-xs text-faint">Available balance</p>
           <p className="mt-1 font-mono text-xl font-semibold text-ink">{money(currentUser.balance)}</p>
-          <Link
-            href="/dashboard/deposit"
-            className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand-dark"
-          >
-            <ArrowDownToLine className="size-3.5" />
-            Add funds
-          </Link>
+          {gated ? (
+            <Link
+              href="/verify"
+              className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand-dark"
+            >
+              <ShieldCheck className="size-3.5" />
+              Verify to unlock
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard/deposit"
+              className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand-dark"
+            >
+              <ArrowDownToLine className="size-3.5" />
+              Add funds
+            </Link>
+          )}
         </div>
       )}
 
@@ -258,6 +279,8 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 
   if (!currentUser) return null;
 
+  const verified = currentUser.kycStatus === "approved";
+
   const toneColor = {
     info: "bg-info",
     success: "bg-brand",
@@ -333,6 +356,13 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
                   </button>
                 ))}
               </div>
+              <Link
+                href="/dashboard/notifications"
+                onClick={() => setOpenPanel(null)}
+                className="block border-t border-line px-4 py-3 text-center text-sm text-brand hover:bg-surface-2/60"
+              >
+                View all notifications
+              </Link>
             </div>
           )}
         </div>
@@ -342,21 +372,46 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
             onClick={() => setOpenPanel(openPanel === "user" ? null : "user")}
             className="flex items-center gap-2 rounded-lg p-1 pr-2 transition-colors hover:bg-surface-2"
           >
-            <Avatar name={currentUser.name} hue={currentUser.avatarHue} size={32} />
+            <span className="relative flex">
+              <Avatar name={currentUser.name} hue={currentUser.avatarHue} size={32} />
+              {verified && (
+                <VerifiedTick size={14} className="absolute -right-0.5 -bottom-0.5 ring-2 ring-base" />
+              )}
+            </span>
             <ChevronDown className="size-4 text-muted" />
           </button>
 
           {openPanel === "user" && (
             <div className="animate-pop absolute right-0 mt-2 w-64 overflow-hidden rounded-xl2 border border-line bg-surface shadow-pop">
               <div className="border-b border-line p-4">
-                <p className="truncate font-medium text-ink">{currentUser.name}</p>
+                <p className="flex items-center gap-1.5 font-medium text-ink">
+                  <span className="truncate">{currentUser.name}</span>
+                  {verified && <VerifiedTick size={15} />}
+                </p>
                 <p className="truncate text-xs text-muted">{currentUser.email}</p>
-                <Badge
-                  tone={currentUser.role === "admin" ? "violet" : "success"}
-                  className="mt-2 capitalize"
-                >
-                  {currentUser.role}
-                </Badge>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Badge
+                    tone={currentUser.role === "admin" ? "violet" : "neutral"}
+                    className="capitalize"
+                  >
+                    {currentUser.role}
+                  </Badge>
+                  {verified ? (
+                    <Badge tone="success">
+                      <ShieldCheck className="size-3" />
+                      Verified
+                    </Badge>
+                  ) : (
+                    currentUser.role === "user" && (
+                      <Link href="/verify" onClick={() => setOpenPanel(null)}>
+                        <Badge tone="warning">
+                          <ShieldCheck className="size-3" />
+                          Verify identity
+                        </Badge>
+                      </Link>
+                    )
+                  )}
+                </div>
               </div>
               <div className="p-1.5">
                 <Link

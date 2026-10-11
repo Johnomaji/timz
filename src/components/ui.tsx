@@ -1,6 +1,6 @@
 "use client";
 
-import { Monitor, Moon, Sun, X } from "lucide-react";
+import { Check, Monitor, Moon, Sun, X } from "lucide-react";
 import {
   useEffect,
   type ButtonHTMLAttributes,
@@ -403,6 +403,22 @@ export function Avatar({
       }}
     >
       {initials(name)}
+    </span>
+  );
+}
+
+/** Filled tick shown against a verified account. */
+export function VerifiedTick({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <span
+      title="Identity verified"
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-brand text-brand-ink",
+        className,
+      )}
+      style={{ width: size, height: size }}
+    >
+      <Check style={{ width: size * 0.66, height: size * 0.66 }} strokeWidth={4} />
     </span>
   );
 }
