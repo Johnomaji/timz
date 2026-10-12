@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, Monitor, Moon, Sun, X } from "lucide-react";
+import { Check, Eye, EyeOff, Monitor, Moon, Sun, X } from "lucide-react";
 import {
   useEffect,
+  useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -132,6 +133,27 @@ const controlBase =
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(controlBase, className)} {...props} />;
+}
+
+export function PasswordInput({
+  className,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <span className="relative block">
+      <Input type={visible ? "text" : "password"} className={cn("pr-11", className)} {...props} />
+      <button
+        type="button"
+        onClick={() => setVisible((prev) => !prev)}
+        aria-label={visible ? "Hide password" : "Show password"}
+        className="absolute top-1/2 right-3 -translate-y-1/2 text-faint transition-colors hover:text-muted"
+      >
+        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </span>
+  );
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {

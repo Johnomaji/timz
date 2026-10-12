@@ -167,18 +167,19 @@ export default function LandingPage() {
           <div className="animate-rise max-w-3xl">
             <Badge tone="success" className="mb-6">
               <span className="size-1.5 animate-ring rounded-full bg-brand" />
-              Live yield desk · {activePlans.length} active plans
+              Diversified portfolio · {activePlans.length} active plans
             </Badge>
 
             <h1 className="text-4xl leading-[1.08] font-semibold tracking-tight sm:text-6xl">
-              Put your digital assets{" "}
-              <span className="text-gradient">to work every single day.</span>
+              Grow your capital across{" "}
+              <span className="text-gradient">real-world assets.</span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-              {db.settings.platformName} is a managed yield platform. Fund your balance, pick a plan
-              that matches your horizon, and track ROI, withdrawals and referrals from one clean
-              dashboard.
+              {db.settings.platformName} allocates across established businesses, real estate,
+              equities, commodities and emerging Web3 opportunities. Fund your balance in crypto,
+              pick a term that matches your horizon, and track returns, withdrawals and referrals
+              from one clean dashboard.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -200,10 +201,15 @@ export default function LandingPage() {
                 { label: "Under management", value: money(totalUnderManagement, { compact: true }) },
                 { label: "Investors", value: `${db.users.filter((u) => u.role === "user").length}` },
                 {
-                  label: "Top annual ROI",
+                  label: "Top total return",
                   value: `${Math.max(...activePlans.map((p) => p.roiMaxPct))}%`,
                 },
-                { label: "Payout uptime", value: "99.9%" },
+                {
+                  label: "Minimum to start",
+                  value: money(Math.min(...activePlans.map((p) => p.minAmount)), {
+                    compact: true,
+                  }),
+                },
               ].map((stat) => (
                 <div key={stat.label}>
                   <p className="font-mono text-2xl font-semibold text-ink">{stat.value}</p>

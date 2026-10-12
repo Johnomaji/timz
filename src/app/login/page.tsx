@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthLayout } from "@/components/auth-layout";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input, PasswordInput } from "@/components/ui";
 import { DEMO_ADMIN, DEMO_USER } from "@/lib/seed";
 import { useStore } from "@/lib/store";
 import { signIn } from "@/lib/supabase/auth";
@@ -81,8 +81,7 @@ export default function LoginPage() {
         </Field>
 
         <Field label="Password">
-          <Input
-            type="password"
+          <PasswordInput
             required
             autoComplete="current-password"
             placeholder="••••••••"

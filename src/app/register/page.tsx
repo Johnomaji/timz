@@ -3,8 +3,6 @@
 import {
   AlertCircle,
   Check,
-  Eye,
-  EyeOff,
   Headphones,
   Lock,
   Mail,
@@ -15,7 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthLayout } from "@/components/auth-layout";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input, PasswordInput } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { signUp } from "@/lib/supabase/auth";
 import { usingSupabase } from "@/lib/supabase/config";
@@ -36,7 +34,6 @@ export default function RegisterPage() {
     confirm: "",
     referralCode: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
@@ -157,30 +154,17 @@ export default function RegisterPage() {
         </Field>
 
         <Field label="Password" hint="At least 6 characters">
-          <div className="relative">
-            <Input
-              type={showPassword ? "text" : "password"}
-              required
-              autoComplete="new-password"
-              className="pr-11"
-              placeholder="Create a strong password"
-              value={form.password}
-              onChange={(e) => set("password")(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-faint transition-colors hover:text-muted"
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
+          <PasswordInput
+            required
+            autoComplete="new-password"
+            placeholder="Create a strong password"
+            value={form.password}
+            onChange={(e) => set("password")(e.target.value)}
+          />
         </Field>
 
         <Field label="Confirm password">
-          <Input
-            type="password"
+          <PasswordInput
             required
             autoComplete="new-password"
             placeholder="••••••••"

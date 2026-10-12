@@ -13,6 +13,7 @@ import {
   Field,
   Input,
   Modal,
+  PasswordInput,
   Select,
   statusTone,
   Toggle,
@@ -168,8 +169,7 @@ export default function UserSettingsPage() {
           <div className="p-5">
             <form className="space-y-4" onSubmit={savePassword}>
               <Field label="Current password">
-                <Input
-                  type="password"
+                <PasswordInput
                   autoComplete="current-password"
                   value={passwords.current}
                   onChange={(e) => {
@@ -180,16 +180,14 @@ export default function UserSettingsPage() {
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="New password" hint="At least 6 characters">
-                  <Input
-                    type="password"
+                  <PasswordInput
                     autoComplete="new-password"
                     value={passwords.next}
                     onChange={(e) => setPasswords({ ...passwords, next: e.target.value })}
                   />
                 </Field>
                 <Field label="Confirm new password">
-                  <Input
-                    type="password"
+                  <PasswordInput
                     autoComplete="new-password"
                     value={passwords.confirm}
                     onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}

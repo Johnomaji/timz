@@ -60,6 +60,7 @@ export async function signUp(input: {
     password: input.password,
     // handle_new_user() reads these to build the profile and resolve referred_by.
     options: {
+      emailRedirectTo: window.location.origin,
       data: {
         name: input.name.trim(),
         phone: input.phone ?? "",
