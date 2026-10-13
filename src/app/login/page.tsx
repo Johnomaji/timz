@@ -2,8 +2,8 @@
 
 import { AlertCircle, LineChart, Lock, ShieldCheck, User, Headphones } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { AuthLayout } from "@/components/auth-layout";
 import { Button, Field, Input, PasswordInput } from "@/components/ui";
 import { DEMO_ADMIN, DEMO_USER } from "@/lib/seed";
@@ -16,6 +16,21 @@ const HIGHLIGHTS = [
   { icon: ShieldCheck, label: "Verified accounts, transparent payouts" },
   { icon: Headphones, label: "24/7 support" },
 ];
+
+/** Carries the reason an emailed link failed, set by /auth/confirm. Separated out and
+ *  suspended because useSearchParams would otherwise force the whole page off the
+ *  prerender — which only shows up as a production build failure, never in dev. */
+function LinkErrorNotice() {
+  const message = useSearchParams().get("error");
+  if (!message) return null;
+
+  return (
+    <div className="mt-6 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3.5 py-3 text-sm text-warn">
+      <AlertCircle className="mt-0.5 size-4 shrink-0" />
+      {message}
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const { login } = useStore();
@@ -62,6 +77,10 @@ export default function LoginPage() {
         Sign in to your account, or jump straight in with a demo profile.
       </p>
 
+      <Suspense fallback={null}>
+        <LinkErrorNotice />
+      </Suspense>
+
       <form
         className="mt-7 space-y-4"
         onSubmit={(e) => {
@@ -89,6 +108,15 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </Field>
+
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-brand hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
 
         {error && (
           <div className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-3 text-sm text-danger">

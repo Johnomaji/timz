@@ -60,7 +60,9 @@ export async function signUp(input: {
     password: input.password,
     // handle_new_user() reads these to build the profile and resolve referred_by.
     options: {
-      emailRedirectTo: window.location.origin,
+      // Must land on the route that exchanges the token for a session; pointing this at
+      // the origin leaves the user confirmed but still signed out.
+      emailRedirectTo: `${window.location.origin}/auth/confirm?next=/verify`,
       data: {
         name: input.name.trim(),
         phone: input.phone ?? "",
@@ -81,4 +83,42 @@ export async function signUp(input: {
 
 export async function signOut(): Promise<void> {
   await getBrowserClient().auth.signOut();
+}
+
+/**
+ * Sends the password-reset email.
+ *
+ * Callers must show the same confirmation whether or not the address exists — the result
+ * deliberately carries no "unknown account" signal, so the form can't be used to work out
+ * who banks here. Only transport-level failures surface as errors.
+ */
+export async function requestPasswordReset(email: string): Promise<AuthResult> {
+  const { error } = await getBrowserClient().auth.resetPasswordForEmail(
+    email.trim().toLowerCase(),
+    { redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password` },
+  );
+
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/**
+ * Sets a new password for the recovery session created by the emailed link.
+ *
+ * Unlike `changePassword` in writes.ts this takes no current password — proving control of
+ * the mailbox is the check, and someone resetting has by definition forgotten the old one.
+ */
+export async function completePasswordReset(password: string): Promise<AuthResult> {
+  if (password.length < 6) return { ok: false, error: "Use at least 6 characters." };
+
+  const supabase = getBrowserClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { ok: false, error: error.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Your reset link has expired. Request a new one." };
+
+  const profile = await fetchProfile(user.id);
+  return profile ? { ok: true, user: profile } : { ok: true };
 }

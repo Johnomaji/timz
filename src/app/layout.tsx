@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ChatWidget } from "@/components/chat-widget";
 import { StoreProvider } from "@/lib/store";
 import { ThemeProvider, themeScript } from "@/lib/theme";
 import { SITE_URL } from "@/lib/site";
@@ -49,7 +50,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <StoreProvider>{children}</StoreProvider>
+          <StoreProvider>
+            {children}
+            <ChatWidget />
+          </StoreProvider>
         </ThemeProvider>
       </body>
     </html>
